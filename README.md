@@ -10,6 +10,7 @@ Si eres nuevo, lee en este orden:
 4. [docs/ecosistema.md](docs/ecosistema.md): qué repo, qué carpeta de Drive y qué página de Notion sirve para qué.
 5. [docs/instalacion.md](docs/instalacion.md): qué instalar, según si haces arte o también código.
 6. [docs/como-funciona.md](docs/como-funciona.md): el sistema completo, de la idea al cierre de un juego.
+7. [docs/flujo-de-trabajo.md](docs/flujo-de-trabajo.md): de la idea al changelog, con interrogatorio, spec, historias y etiquetas.
 
 ## Qué es y qué no es
 
