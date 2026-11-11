@@ -1,0 +1,88 @@
+# Flujo de trabajo: de la idea al changelog
+
+Vale para todos los repos de la organización. Cada paso deja algo escrito en GitHub; nada se decide solo en una llamada.
+
+```mermaid
+flowchart TD
+  A[1. Idea en Discussions] --> B[2. Interrogatorio de la idea]
+  B -->|no aguanta| X[Se cierra la discusión con el motivo]
+  B -->|aguanta| C[3. Spec de una página]
+  C --> D[4. Historias de usuario]
+  D --> E[5. Issues con criterio de listo]
+  E --> F[6. Rama, PR y CI]
+  F --> G[7. Verificación en Studio]
+  G --> H[8. Release con changelog]
+  H --> I[9. Medición y veredicto]
+  I --> A
+```
+
+## 1. Idea
+
+Categoría **Ideas** de Discussions. Formato libre, una idea por discusión. Etiqueta `tipo:idea`.
+
+## 2. Interrogatorio de la idea
+
+Antes de gastar una hora de trabajo, la idea se interroga con todo el equipo en la misma discusión. Lo conduce el agente de quien la propuso, con una pregunta por comentario, hasta que no queden respuestas vagas. Preguntas mínimas:
+
+| # | Pregunta | Se responde con |
+|---|---|---|
+| 1 | ¿Qué hace el jugador en los primeros 10 segundos? | Una frase |
+| 2 | ¿Por qué volvería mañana? | Un motivo concreto |
+| 3 | ¿Qué se ve en los primeros 3 segundos de un video? | Una imagen descrita |
+| 4 | ¿Quién ya lo hace y cómo le va? | Referentes medidos del vault, con cifra y fecha |
+| 5 | ¿Qué tenemos ya en la plantilla y qué habría que construir? | Lista |
+| 6 | ¿Cabe en 7 a 10 días con tres personas? | Sí, o qué se recorta |
+| 7 | ¿Qué dato nos haría abandonarla? | Un umbral |
+
+Se cierra con un comentario de resumen: decisión (sigue, se recorta o se descarta), quién decidió y qué se pierde. Si sigue, la discusión se convierte en issue con "Create issue from discussion".
+
+## 3. Spec de una página
+
+Issue con la plantilla **Spec**: problema, a quién le sirve, qué entra, qué queda fuera, cómo se mide. Etiqueta `tipo:spec`. Es el issue padre.
+
+## 4. Historias de usuario
+
+Sub-issues del spec, plantilla **Historia de usuario**: "Como jugador que..., quiero..., para...". Cada una con criterios de aceptación comprobables (Dado, Cuando, Entonces) y su tamaño. Etiqueta `tipo:historia`.
+
+## 5. Issues
+
+Cada historia se parte en tareas si pasa de tamaño M. Toda tarea tiene dueño, área, prioridad y criterio de listo. Estados: viven en el Project, no en etiquetas.
+
+## 6. Rama, PR y CI
+
+Una rama por issue, PR a `develop` con `Closes #N`. El CI revisa formato, tipos, pruebas y cobertura. Al verde, el automerge la une, cierra el issue y borra la rama. Los commits siguen Conventional Commits, porque de ahí sale el changelog.
+
+## 7. Verificación
+
+Lo que cambia cómo se juega se abre como borrador y se prueba en Studio (y en emulador de teléfono) antes de marcarla lista. En el Project pasa por "Verificación" antes de "Hecho".
+
+## 8. Release y changelog
+
+`release.yml` calcula la versión desde los commits, escribe `CHANGELOG.md`, abre la PR de `develop` a `main`, la une, etiqueta la versión y crea el Release en GitHub. Corre a pedido o los lunes si hay cambios.
+
+## 9. Medición y veredicto
+
+Con jugadores reales: retención y tiempo de sesión contra el umbral del equipo. El veredicto (seguir o cerrar) y lo aprendido se escriben en `roblox-vault`.
+
+## Etiquetas
+
+Las mismas en todos los repos.
+
+| Grupo | Etiquetas |
+|---|---|
+| Tipo | `tipo:idea`, `tipo:spec`, `tipo:historia`, `tipo:tarea`, `tipo:bug`, `tipo:investigación`, `tipo:deuda`, `tipo:docs` |
+| Área | `area:código`, `area:ui`, `area:arte`, `area:economía`, `area:audio`, `area:crecimiento`, `area:infra` |
+| Dueño | `owner:victor`, `owner:nande`, `owner:leon`, `agent` |
+| Triaje | `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` |
+| Flujo | `handoff`, `hold`, `keep`, `board`, `acuerdo`, `from-research` |
+
+Prioridad, tamaño e iteración no son etiquetas: son campos del Project.
+
+## Qué hacen los agentes
+
+- Conducen el interrogatorio y escriben el resumen.
+- Redactan el spec y las historias desde la discusión, para que una persona los apruebe.
+- Toman los issues con `ready-for-agent`, abren la PR y responden en el Agent Board.
+- Mantienen el Project al día y avisan lo que se atrasa.
+
+Un agente no decide si una idea sigue, no publica y no gasta: eso es de las personas.

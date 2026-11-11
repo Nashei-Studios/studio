@@ -74,3 +74,30 @@ Estado: **pendiente**. Falta que Victor cree la carpeta compartida y autorice `r
 ## Skills y herramientas de IA compartidas
 
 Las skills de Roblox que usa Victor (análisis por frentes, UI, monetización, publicación, Studio por MCP) viven hoy en su configuración personal. Para que los tres tengan las mismas, el plan es publicarlas como un marketplace de plugins de Claude Code en un repo de esta organización, que cada persona instala con un comando. Estado: **pendiente**, issue en este repo.
+
+## El mismo sistema en todos los repos
+
+| Pieza | Cómo queda igual en todos | Estado |
+|---|---|---|
+| Ramas | `develop` por defecto con squash; `main` solo recibe releases | Plantado en `drain-for-loot`, `roblox-game-template` y `plus-one-mining` |
+| CI, automerge y release | Workflows de la plantilla; cada juego los hereda al estamparse | Funciona; Actions ya puede crear PR en toda la organización |
+| Project | Uno global y uno por repo, con el mismo ciclo (Backlog, Listo, En curso, En revisión, Verificación, Hecho), campos (Prioridad, Carril, Tamaño, Puntos, Iteración, Inicio, Objetivo) y diez vistas | Plantado en los cuatro con `plant-project.mjs` |
+| Equipos | `todos` (escritura en todos los repos), `dev`, `arte` | Creados |
+| Tablero de agentes | Issue fijado más `tools/board` y sus hooks | En `studio` y `drain-for-loot` |
+| Etiquetas | `owner:*`, `agent`, `handoff`, `art`, `hold`, `board`, `acuerdo` | En `drain-for-loot`; falta copiarlas al resto |
+
+### Protección de `main`: qué se puede y qué no
+
+GitHub no permite reglas de protección de ramas ni rulesets en repos **privados** de una organización gratis. Se probó el 2026-11-11: la API responde que hay que pagar o hacer público el repo. En el único repo público (`.github`) la regla sí quedó activa.
+
+Lo que protege `main` en los repos privados:
+
+- Nadie trabaja en `main`: la rama por defecto es `develop` y `main` solo la toca el workflow de release.
+- Todo entra por PR con CI; el merge lo hace el automerge, no una persona.
+- CODEOWNERS pide la revisión del dueño de cada carpeta.
+
+Lo que **no** se puede garantizar: que alguien con permiso de escritura no empuje directo a `main`. Opciones: dejarlo así (recomendado mientras son tres), o hacer públicos los repos que no tengan nada privado, donde la regla sí aplica. Los tres miembros son hoy Owner de la organización; con ese rol cualquier regla se puede saltar.
+
+### Pasos que solo existen en la interfaz
+
+En cada Project, una vez: columna del tablero por Status (y por Carril en "Por carril"), fechas del roadmap con Inicio y Objetivo, límite de trabajo en "En curso", y los workflows integrados (ítem agregado a Backlog, PR enlazada a En revisión, cerrado a Hecho, auto-archivo, auto-agregar issues del repo).
