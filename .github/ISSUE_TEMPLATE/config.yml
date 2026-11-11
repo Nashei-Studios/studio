@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Idea o duda
+    url: https://github.com/Nashei-Studios/studio/discussions
+    about: Las ideas y las preguntas van en Discussions. Las tareas de un juego van en los Issues de ese juego.
