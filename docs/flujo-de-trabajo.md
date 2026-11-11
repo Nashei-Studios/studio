@@ -52,6 +52,22 @@ Cada historia se parte en tareas si pasa de tamaño M. Toda tarea tiene dueño, 
 
 Una rama por issue, PR a `develop` con `Closes #N`. El CI revisa formato, tipos, pruebas y cobertura. Al verde, el automerge la une, cierra el issue y borra la rama. Los commits siguen Conventional Commits, porque de ahí sale el changelog.
 
+### Quién escribe las pruebas
+
+Las pruebas se escriben para romper el código, no para verlo pasar. Si la misma IA escribe el código y sus pruebas, las dos comparten los mismos puntos ciegos. Por eso cada tarea de código pasa por tres roles distintos:
+
+| Rol | Qué hace | Qué no hace |
+|---|---|---|
+| Orquestador | Parte el issue, reparte y revisa las PR | No implementa |
+| Agente que implementa | Escribe el código y sus pruebas unitarias | No escribe las pruebas de aceptación de su propio código |
+| Agente de pruebas | Lee solo la historia y sus criterios, y escribe pruebas que buscan que falle: propiedades con entradas aleatorias y entradas mal formadas contra todo lo que recibe datos del jugador | No arregla nada; reporta lo que rompió |
+
+La plantilla ya trae las herramientas (`tests/property/`, `tests/fuzz/`, cobertura mínima de 75 %), así que cada juego las hereda.
+
+### Arreglo urgente en producción (hotfix)
+
+Si algo se rompe en un juego publicado: rama `hotfix/<tema>` desde `main`, PR a `main` con el arreglo mínimo y su prueba, release de parche, y la misma PR se lleva a `develop` el mismo día. Es el único caso en que una rama que no es `develop` entra a `main`.
+
 ## 7. Verificación
 
 Lo que cambia cómo se juega se abre como borrador y se prueba en Studio (y en emulador de teléfono) antes de marcarla lista. En el Project pasa por "Verificación" antes de "Hecho".
