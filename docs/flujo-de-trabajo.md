@@ -16,6 +16,10 @@ flowchart TD
   I --> A
 ```
 
+## Partir un juego: el grill
+
+Un juego nuevo no parte escribiendo issues. Parte con un solo documento, [el grill de juego](../plantillas/grill-de-juego.md): un agente lo deja prellenado con la investigación, el grupo lo responde en una reunión y de sus respuestas el agente genera el spec, las épicas, las historias, los issues, el Project y la fila de Notion (skill `grill-de-juego` de `claude-toolkit`). Los pasos de abajo son el mismo camino para una idea suelta dentro de un juego que ya existe.
+
 ## 1. Idea
 
 Categoría **Ideas** de Discussions. Formato libre, una idea por discusión. Etiqueta `tipo:idea`.
