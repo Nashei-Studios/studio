@@ -11,6 +11,7 @@ Si eres nuevo, lee en este orden:
 5. [docs/instalacion.md](docs/instalacion.md): qué instalar, según si haces arte o también código.
 6. [docs/como-funciona.md](docs/como-funciona.md): el sistema completo, de la idea al cierre de un juego.
 7. [docs/flujo-de-trabajo.md](docs/flujo-de-trabajo.md): de la idea al changelog, con interrogatorio, spec, historias y etiquetas.
+8. [docs/verificacion.md](docs/verificacion.md): la lista que corre el agente de cada persona para comprobar que su equipo quedó conectado.
 
 ## Qué es y qué no es
 
