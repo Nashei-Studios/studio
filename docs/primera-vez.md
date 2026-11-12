@@ -55,7 +55,7 @@ gh repo clone Nashei-Studios/studio ~/Nashei/repos/studio
 pwsh ~/Nashei/repos/studio/tools/puesto.ps1 install
 ```
 
-`-Perfil arte` o `-Perfil codigo` si tu persona hace solo una de las dos cosas; por defecto instala todo. El comando termina con una lista: PASA, FALLA, PERSONA o NO APLICA por comprobación.
+`-Perfil arte` o `-Perfil codigo` si tu persona hace solo una de las dos cosas; por defecto instala todo. Si tu persona ya tenía los repos o los kits en otras carpetas, no los muevas ni los clones de nuevo: escribe `~/Nashei/puesto.json` con esas rutas (el formato está en la ayuda de `puesto.ps1`) y la herramienta los reconoce por su URL de origen. El comando termina con una lista: PASA, FALLA, PERSONA o NO APLICA por comprobación.
 
 - **FALLA**: arréglalo con el dato que trae la línea y vuelve a correr `puesto.ps1 check`.
 - **PERSONA**: explícale a tu persona qué tiene que hacer, con el comando o el enlace de la línea, y espera.
@@ -74,7 +74,8 @@ Cada una se comprueba con `claude mcp list` (o el equivalente de tu agente). Ins
 | Roblox Studio | En Studio: Assistant, Manage MCP Servers, activar "Enable Studio as MCP server" | Sí: el clic |
 | Blender | Pasos de `~/Nashei/repos/art/docs/blender.md` | Sí: activar el addon dentro de Blender |
 | Documentación de librerías | `claude mcp add context7 -- npx -y @upstash/context7-mcp` | No |
-| Grafo del código | Proyectos `codebase-memory-mcp` y `graphify`: sigue el README de cada uno y verifica el origen antes de ejecutar un instalador | No |
+| Grafo del código (`codebase-memory`) | Instalador oficial de https://github.com/DeusData/codebase-memory-mcp : en macOS y Linux `install.sh`, en Windows `install.ps1`. Descárgalo, léelo y recién entonces ejecútalo; registra el MCP solo | No |
+| Grafo de documentos y código (`graphify`) | `uv tool install graphifyy` y luego `graphify install` (si falta `uv`: https://docs.astral.sh/uv/) | No |
 | Obsidian | Abrir `~/Nashei/repos/roblox-vault` como bóveda | Sí: "Abrir carpeta como bóveda" |
 
 ### 6. Inventario de arte
@@ -118,4 +119,4 @@ Después lee `CONTEXT.md`, `AGENTS.md` y `docs/flujo-de-trabajo.md` de `studio`,
 - No inicia sesiones por ti ni guarda contraseñas.
 - No sube nada tuyo sin tu aprobación, ni borra duplicados: solo los lista.
 - No instala Roblox Studio.
-- Probado en Windows. En macOS y Linux las herramientas usan los mismos comandos, pero nadie las ha corrido todavía: si algo falla, el agente lo informa en la discusión con el error.
+- Las tres herramientas pasan una prueba automática en Windows, macOS y Linux en cada cambio (`tools/tests/smoke.ps1`, con un Drive simulado). Lo que esa prueba no cubre es la instalación de programas con el gestor de paquetes de cada sistema: solo se ha corrido en Windows. Si algo falla ahí, el agente lo informa en la discusión con el error.
