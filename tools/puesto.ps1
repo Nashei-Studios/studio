@@ -58,6 +58,8 @@ function Invoke-Quiet { param([string]$Exe, [string[]]$ExeArgs)
 
 # One row per tool: command that proves it, package id per system, who needs it.
 # A missing id means there is no package for that system: the row says where to get it.
+# "snap:<name>" installs a classic snap; "script:<url>" runs the project's own installer.
+$rokitScript = 'https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh'
 $tools = @(
     @{ id = 'git';     cmd = 'git';     need = $true;      windows = 'Git.Git';                  macos = 'git';              linux = 'git' }
     @{ id = 'gh';      cmd = 'gh';      need = $true;      windows = 'GitHub.cli';               macos = 'gh';               linux = 'gh' }
@@ -65,10 +67,12 @@ $tools = @(
     @{ id = 'node';    cmd = 'node';    need = $true;      windows = 'OpenJS.NodeJS.LTS';        macos = 'node';             linux = 'nodejs' }
     @{ id = 'blender'; cmd = 'blender'; need = $wantArt;   windows = 'BlenderFoundation.Blender'; macos = '--cask blender';  linux = 'blender'
        paths = @('C:\Program Files\Blender Foundation', '/Applications/Blender.app') }
-    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; help = 'https://obsidian.md'
-       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app') }
-    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; help = 'https://github.com/rojo-rbx/rokit#installation' }
-    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; help = 'https://code.visualstudio.com' }
+    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; linux = 'snap:obsidian'; help = 'https://obsidian.md'
+       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app', '/snap/bin/obsidian') }
+    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; macos = "script:$rokitScript"; linux = "script:$rokitScript"; help = 'https://github.com/rojo-rbx/rokit#installation'
+       paths = @((Join-Path $HOME '.rokit/bin/rokit')) }
+    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; linux = 'snap:code'; help = 'https://code.visualstudio.com'
+       paths = @('/Applications/Visual Studio Code.app', '/snap/bin/code') }
 )
 
 function Get-ToolVersion { param($Tool)
@@ -84,6 +88,18 @@ function Test-Tool { param($Tool)
 function Install-Tool { param($Tool)
     $pkg = $Tool[$os]
     if (-not $pkg) { return $false }
+    if ($pkg -like 'script:*') {
+        # The installer is downloaded to a file first so a failed download is not piped into a shell.
+        $file = Join-Path ([IO.Path]::GetTempPath()) "nashei-install-$($Tool.id).sh"
+        try { Invoke-WebRequest -Uri $pkg.Substring(7) -OutFile $file -UseBasicParsing } catch { return $false }
+        & bash $file | Out-Null
+        return (Test-Tool $Tool)
+    }
+    if ($pkg -like 'snap:*') {
+        if (-not (Test-Cmd snap)) { return $false }
+        & sudo snap install $pkg.Substring(5) --classic | Out-Null
+        return (Test-Tool $Tool)
+    }
     switch ($os) {
         'windows' { if (-not (Test-Cmd winget)) { return $false }
                     & winget install --id $pkg --exact --silent --accept-package-agreements --accept-source-agreements | Out-Null }
@@ -104,7 +120,8 @@ foreach ($tool in $tools) {
     $have = Test-Tool $tool
     if (-not $have -and $Action -eq 'install') { $have = Install-Tool $tool }
     $hint = $tool[$os] ? "paquete $($tool[$os])" : "sin paquete para $os`: $($tool.help)"
-    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint) }
+    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint)
+    $results[$results.Count - 1] | Add-Member -NotePropertyName installable -NotePropertyValue ([bool]$tool[$os]) }
 
 # Roblox Studio has no Linux build and no package: it is installed from create.roblox.com.
 $studioPaths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Roblox\Versions'), '/Applications/RobloxStudio.app')
