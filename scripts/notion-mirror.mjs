@@ -71,15 +71,15 @@ async function notion(fetchImpl, token, method, path, body) {
   return response.json();
 }
 
-/** Creates the page for `record`, or updates the one whose Ref matches. Returns "created" or "updated". */
-export async function upsert(fetchImpl, env, record) {
+/** Creates the page for `record`, or updates the one whose Ref matches. `extend` may add properties. Returns "created" or "updated". */
+export async function upsert(fetchImpl, env, record, extend = (properties) => properties) {
   const token = env.NOTION_TOKEN;
   const databaseId = env.NOTION_DATABASE_ID;
   const found = await notion(fetchImpl, token, "POST", `/databases/${databaseId}/query`, {
     filter: { property: "Ref", rich_text: { equals: record.ref } },
     page_size: 1,
   });
-  const properties = toProperties(record);
+  const properties = extend(toProperties(record));
   if (found.results.length > 0) {
     await notion(fetchImpl, token, "PATCH", `/pages/${found.results[0].id}`, { properties });
     return "updated";
