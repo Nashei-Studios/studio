@@ -18,6 +18,8 @@ flowchart TD
 
 ## Partir un juego: el grill
 
+Antes de eso, cuando todavía no se sabe qué juego hacer, va el [grill inicial](../plantillas/grill-inicial.md): el agente trae la foto de mercado, los legacy y las ideas del vault; el grupo compara candidatos con una matriz, elige uno y fija la dirección de cada frente (arte, UI, loop, música, crecimiento). De ahí sale una decisión en el vault y el candidato pasa al grill de juego.
+
 Un juego nuevo no parte escribiendo issues. Parte con un solo documento, [el grill de juego](../plantillas/grill-de-juego.md): un agente lo deja prellenado con la investigación, el grupo lo responde en una reunión y de sus respuestas el agente genera el spec, las épicas, las historias, los issues, el Project y la fila de Notion (skill `grill-de-juego` de `claude-toolkit`). Los pasos de abajo son el mismo camino para una idea suelta dentro de un juego que ya existe.
 
 ## 1. Idea

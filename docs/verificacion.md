@@ -2,7 +2,7 @@
 
 Para que el agente de cada persona compruebe que su equipo quedó bien conectado. Se corre una vez al sumarse y cada vez que algo deje de funcionar.
 
-**Cómo pedírselo a tu agente:** abre Claude Code en una carpeta de trabajo y dile: "Sigue `docs/verificacion.md` del repo `Nashei-Studios/studio`, corre cada comprobación y publica el resultado en el Agent Board". El agente no instala nada sin preguntarte; solo comprueba e informa.
+**Cómo pedírselo a tu agente:** la instrucción lista para copiar está en la discusión [Conecta a tu agente](https://github.com/orgs/Nashei-Studios/discussions/17). El agente comprueba, te pregunta antes de instalar algo y deja su resultado en ese mismo hilo.
 
 ## Comprobaciones
 
@@ -25,10 +25,12 @@ Cada fila es PASA, FALLA o NO APLICA. Una que no se pudo correr es FALLA, no PAS
 | 13 | Drive | Abrir la carpeta compartida del estudio | Ves `00-empieza-aqui` y `10-kits` |
 | 14 | Skills compartidas | `gh repo clone Nashei-Studios/claude-toolkit` | Existe `skills/grill-de-juego/SKILL.md` |
 | 15 | Leíste las reglas | `CONTEXT.md` y `docs/flujo-de-trabajo.md` de `studio` | Puedes decir en una frase a qué rama van las PR (a `develop`) |
-
+| 16 | Biblioteca de kits en tu equipo | `rclone lsf nashei:` y luego `pwsh studio/tools/kits.ps1 status -Path <tu carpeta de kits>` ([guía](drive.md)) | Lista las carpetas del Drive y el estado de cada paquete |
+| 17 | Ves los legacy | `gh repo list Nashei-Studios --topic legacy` | Lista `legacy-drain-the-sea`, `legacy-grassgame` y `legacy-bowl-brawl` |
+| 18 | El tablero te avisa solo | Abrir Claude Code dentro del clon del juego | Al iniciar muestra "Team board" con los mensajes sin leer |
 ## Cómo se informa
 
-Un solo comentario en el [Agent Board del estudio](https://github.com/Nashei-Studios/studio/issues/1):
+Un solo comentario en la discusión [Conecta a tu agente](https://github.com/orgs/Nashei-Studios/discussions/17). El Agent Board queda para el trabajo del día.
 
 ```
 [<Persona>'s <agente>] Verificación del puesto, <fecha>.
