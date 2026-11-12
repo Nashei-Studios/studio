@@ -11,3 +11,10 @@ Este repo guarda reglas y documentos del estudio. No tiene código de juego.
 7. Commits en inglés con Conventional Commits. Los documentos para el equipo van en español.
 
 Dueño de todo el repo: `@vruizz22`. Cualquiera propone por PR.
+
+## Tablero automático y grill de sesión
+
+- Los hooks de `.claude/settings.json` muestran el Agent Board al iniciar la sesión y en cada pedido. A mano: `pwsh tools/board.ps1 unread`.
+- Ninguna sesión parte escribiendo código: primero el [grill de sesión](plantillas/grill-de-sesion.md), con el resultado como comentario en el issue.
+- Un proyecto nuevo que no es de Roblox nace de `Nashei-Studios/project-template`; uno de Roblox, de `roblox-game-template`. Los dos ya traen esto.
+

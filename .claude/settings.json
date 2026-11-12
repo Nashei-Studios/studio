@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File tools/board-hooks/board-hook.ps1 session-start",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File tools/board-hooks/board-hook.ps1 prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

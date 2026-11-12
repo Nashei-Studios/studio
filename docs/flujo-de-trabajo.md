@@ -22,6 +22,14 @@ Antes de eso, cuando todavía no se sabe qué juego hacer, va el [grill inicial]
 
 Un juego nuevo no parte escribiendo issues. Parte con un solo documento, [el grill de juego](../plantillas/grill-de-juego.md): un agente lo deja prellenado con la investigación, el grupo lo responde en una reunión y de sus respuestas el agente genera el spec, las épicas, las historias, los issues, el Project y la fila de Notion (skill `grill-de-juego` de `claude-toolkit`). Los pasos de abajo son el mismo camino para una idea suelta dentro de un juego que ya existe.
 
+### Tres tamaños de grill
+
+| Grill | Cuándo | Quién | Sale |
+|---|---|---|---|
+| [Inicial](../plantillas/grill-inicial.md) | No se sabe qué juego hacer | El grupo, 90 a 120 min | Decisión y candidato |
+| [De juego](../plantillas/grill-de-juego.md) | Juego elegido, antes de construir | El grupo, 60 a 90 min | Spec, épicas, historias, issues, Project |
+| [De sesión](../plantillas/grill-de-sesion.md) | Cada vez que alguien se sienta a trabajar | Persona y agente, 5 a 10 min | Plan en el issue; el issue pasa a En curso |
+
 ## 1. Idea
 
 Categoría **Ideas** de Discussions. Formato libre, una idea por discusión. Etiqueta `tipo:idea`.
