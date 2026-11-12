@@ -1,0 +1,43 @@
+name: notion-sync
+
+# Central mirror of every repo of the organization into the Notion database "GitHub".
+# A new repo is covered automatically: nothing to configure in it. Public repo, so minutes are free.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      since_hours:
+        description: 'Look-back window in hours, or "all" for the full history'
+        default: "3"
+
+concurrency:
+  group: notion-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  sync:
+    if: vars.NOTION_DATABASE_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sync to Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SYNC_SINCE_HOURS: ${{ inputs.since_hours || '3' }}
+        run: node scripts/notion-sync.mjs
