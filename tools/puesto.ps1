@@ -35,6 +35,7 @@ param(
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'

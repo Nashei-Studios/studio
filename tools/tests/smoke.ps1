@@ -70,3 +70,4 @@ try {
 }
 if ($failed) { "$failed expectation(s) failed"; exit 1 }
 'smoke passed'
+exit 0  # puesto check exits 1 on a bare runner; that is not this script's result
