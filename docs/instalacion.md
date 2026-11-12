@@ -48,11 +48,11 @@ Son servidores MCP: programas que le dan a Claude Code acceso a una aplicación.
 | Navegador con tu sesión (leer redes, páginas con cuenta) | Extensión Claude in Chrome | Instalado |
 | Escritorio de Windows | MCP de escritorio | Instalado |
 | Documentación al día de librerías | context7 | Instalado |
-| Notion | MCP de Notion con el token del workspace ([notion.md](notion.md)) | Falta el token nuevo |
+| Notion | MCP oficial: `claude mcp add --transport http notion-studio https://mcp.notion.com/mcp`, luego `/mcp` y autenticar con el workspace del estudio | Instalado |
 | Google Drive, Docs, Gmail | workspace-mcp | Instalado |
 | Diagramas | drawio | Instalado |
-| Blender (modelar y exportar desde un pedido en texto) | `blender-mcp` más su addon dentro de Blender | **Falta**: Blender está instalado, el MCP no |
-| Drive como disco para lo pesado | `rclone` | **Falta** autorizarlo con la cuenta de Drive |
+| Blender (modelar y exportar desde un pedido en texto) | `mcp-for-blender` más su addon dentro de Blender. Pasos en el repo `art`, `docs/blender.md` | Instalado |
+| Drive como disco para lo pesado | `rclone` con un remoto llamado `nashei` ([drive.md](drive.md)) | Instalado |
 | Subir imágenes y audio a Roblox desde archivos | `asphalt` (por Rokit) | **Falta**: pide una llave de Open Cloud |
 | Video: bajar, transcribir, cortar | `yt-dlp`, `ffmpeg`, Whisper, Remotion, HyperFrames | Instalado |
 

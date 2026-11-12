@@ -52,28 +52,30 @@ flowchart TD
 
 ## Lo pesado: Drive
 
-Hoy la biblioteca de kits está en el computador de Victor (`D:\Victor\Roblox\kits`, con su `INDEX.json`). Para que el equipo la tenga:
+Todo lo que pesa vive en la carpeta de Drive del estudio, como un zip por paquete más un `manifest.json` con el hash de cada uno. Cada persona tiene su copia local y la herramienta `tools/kits.ps1` la deja igual a la del Drive. Guía completa: [drive.md](drive.md).
 
-1. Carpeta compartida `Nashei Studios` en Google Drive con `kits/`, `video/`, `audio/` y `capturas/`.
-2. La estructura de `kits/` replica el `INDEX.json`: una carpeta por kit, mismo nombre que la nota en `roblox-vault/kits/`.
-3. Cada nota de kit en el vault lleva la ruta de Drive, la licencia y el hash del archivo.
-4. Se sincroniza con `rclone` (libre) desde el computador que tiene la biblioteca. Nadie sube archivos sueltos sin su nota.
+| Carpeta del Drive | Qué tiene (2026-11-11) |
+|---|---|
+| `10-kits` | 36 paquetes: modelos, UI, íconos, audio, vaults de referencia. Cada uno con su nota en `roblox-vault/kits/` |
+| `20-investigacion` | 4 paquetes de material de investigación (videos y subtítulos de referentes) |
+| `50-arte` | Fuentes `.blend` del repo `art` |
+| `LibreriaRbx` | La biblioteca original del equipo, en carpeta; su copia empaquetada es `10-kits/libreria-rbx.zip` |
+| `30-video`, `40-audio`, `60-legacy`, `70-redes`, `90-archivo` | Vacías, con su lugar reservado |
 
-Estado: **pendiente**. Falta que Victor cree la carpeta compartida y autorice `rclone` una vez. Issue en este repo.
-
+Estado: **funciona**. Subir y bajar verifican el hash. Lo que no garantiza: Drive guarda solo la última versión de cada paquete, y la cuota es la de quien sube.
 ## Automatizaciones
 
 | Qué | Cómo | Estado |
 |---|---|---|
 | Merge al verde, cierre de issues, borrado de ramas | Workflows de la plantilla (`ci.yml`, automerge) | Funciona en los repos estampados |
 | Release con changelog | `release.yml` de la plantilla | Funciona |
-| Issues hacia Notion | `notion-mirror.yml` de la plantilla | Apagado hasta tener el token y la base (ver [notion.md](notion.md)) |
-| Aviso de mensajes nuevos al abrir Claude Code | Hooks de `tools/board-hooks/` | Lo activa cada persona en su copia |
+| Issues y PR hacia Notion | `notion-mirror.yml` en cada repo (al instante) y `notion-sync.yml` en `studio` (repaso cada 30 minutos de toda la organización) | Funciona en `studio`, `drain-for-loot` y `project-template`. El repaso central solo ve repos públicos hasta que exista el secreto `GH_READ_TOKEN` |
+| Aviso de mensajes nuevos al abrir Claude Code y en cada pedido | Hooks de `.claude/settings.json` que llaman a `tools/board-hooks/board-hook.ps1` | Funciona solo al clonar: `studio`, `drain-for-loot`, `roblox-game-template`, `project-template` y `art` |
 | Radar de mercado diario | Colector del vault (corre en el computador de Victor) | Funciona |
 
 ## Skills y herramientas de IA compartidas
 
-Las skills de Roblox que usa Victor (análisis por frentes, UI, monetización, publicación, Studio por MCP) viven hoy en su configuración personal. Para que los tres tengan las mismas, el plan es publicarlas como un marketplace de plugins de Claude Code en un repo de esta organización, que cada persona instala con un comando. Estado: **pendiente**, issue en este repo.
+Las skills de Roblox que usa Victor (análisis por frentes, UI, monetización, publicación, Studio por MCP) viven hoy en su configuración personal. Las comunes están en el repo `claude-toolkit` (28 skills); se instalan copiando la carpeta de la skill a `.claude/skills/`. Falta convertirlo en un marketplace de un comando (issue #9).
 
 ## El mismo sistema en todos los repos
 
