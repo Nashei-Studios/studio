@@ -16,7 +16,32 @@ permissions:
   contents: read
 
 jobs:
+  # The workstation tools must behave the same on the three systems people use (issue 38).
+  smoke:
+    if: github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rclone
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update -qq && sudo apt-get install -y -qq rclone ;;
+            macOS) brew install rclone ;;
+            Windows) choco install rclone -y --no-progress ;;
+          esac
+      - name: Smoke test
+        shell: pwsh
+        run: ./tools/tests/smoke.ps1
+
   pr:
+    needs: [smoke]
+    if: ${{ !failure() && !cancelled() }}
     permissions:
       contents: write
       pull-requests: write

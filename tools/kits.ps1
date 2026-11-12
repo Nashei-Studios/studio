@@ -35,6 +35,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 # `pwsh -File` hands "a,b" over as one string; split it so both call styles work.
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $env:RCLONE_LOG_LEVEL = 'ERROR'

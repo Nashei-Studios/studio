@@ -27,6 +27,7 @@ param(
     [int]$MinBytes = 2048
 )
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 $Roots = @($Roots | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $Con = @($Con | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 
