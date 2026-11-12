@@ -104,8 +104,13 @@ function Install-Tool { param($Tool)
     }
     if ($pkg -like 'snap:*') {
         if (-not (Test-Cmd snap)) { $script:installLog = 'falta snap'; return $false }
-        Invoke-Install sudo @('snap', 'install', $pkg.Substring(5), '--classic')
-        return (Test-Tool $Tool)
+        # The snap store times out now and then (HTTP 408): three attempts before giving up.
+        foreach ($attempt in 1..3) {
+            Invoke-Install sudo @('snap', 'install', $pkg.Substring(5), '--classic')
+            if (Test-Tool $Tool) { return $true }
+            if ($attempt -lt 3) { Start-Sleep -Seconds (15 * $attempt) }
+        }
+        return $false
     }
     switch ($os) {
         'windows' { if (-not (Test-Cmd winget)) { $script:installLog = 'falta winget (App Installer)'; return $false }
