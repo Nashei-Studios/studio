@@ -52,10 +52,17 @@ try {
     # 3. Inventory: what was pushed is known, a new file is missing, a copy is a duplicate.
     New-Blob (Join-Path $mine 'sueltos' 'nuevo.glb') 4
     Copy-Item (Join-Path $mine 'sueltos' 'nuevo.glb') (Join-Path $mine 'sueltos' 'nuevo copia.glb')
+    New-Blob (Join-Path $mine 'un-repo' 'modelo.blend') 5
+    New-Item -ItemType Directory -Force (Join-Path $mine 'un-repo' '.git') | Out-Null
+    New-Blob (Join-Path $mine 'logs' 'captura.rbxl') 6
     $report = Join-Path $work 'report'
     & pwsh -NoProfile -File (Join-Path $tools 'inventario.ps1') -Roots $mine -Remote smoke -Out $report | Out-Null
     $files = @(Get-Content (Join-Path $report 'inventario.json') -Raw | ConvertFrom-Json)
-    Assert ($files.Count -eq 5) "inventory lists the 5 art files (got $($files.Count))"
+    Assert ($files.Count -eq 5) "inventory lists the 5 art files and skips the git clone and the logs folder (got $($files.Count))"
+    & pwsh -NoProfile -File (Join-Path $tools 'inventario.ps1') -Roots $mine -Remote smoke -Out $report -ConRepos | Out-Null
+    $withRepos = @(Get-Content (Join-Path $report 'inventario.json') -Raw | ConvertFrom-Json)
+    Assert ($withRepos.Count -eq 6) "-ConRepos also lists what is inside a git clone (got $($withRepos.Count))"
+    & pwsh -NoProfile -File (Join-Path $tools 'inventario.ps1') -Roots $mine -Remote smoke -Out $report | Out-Null
     Assert (@($files | Where-Object { $_.inDrive }).Count -eq 2) 'the 2 packaged files are recognised as already in the Drive'
     Assert ([bool](Select-String -LiteralPath (Join-Path $report 'resumen.md') -Pattern 'Duplicados dentro del computador: 1 ' -Quiet)) 'the duplicate is reported'
 

@@ -1,0 +1,32 @@
+name: install-smoke
+
+# Runs the real first-run install on a clean machine of each system (issue 42). It downloads Blender
+# and friends, so it only runs by hand or when the installer itself changes. Fails when a tool that has a package for that
+# system is not installed afterwards.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: [tools/puesto.ps1, .github/workflows/install-smoke.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: puesto.ps1 install
+        shell: pwsh
+        run: |
+          $json = & pwsh -NoProfile -File tools/puesto.ps1 install -Json -Base (Join-Path $env:RUNNER_TEMP 'nashei')
+          $report = ($json | Out-String) | ConvertFrom-Json
+          $report.results | ForEach-Object { '{0,-9} {1} {2}' -f $_.state, $_.what, $_.detail }
+          $broken = @($report.results | Where-Object { $_.installable -and $_.state -ne 'PASA' })
+          if ($broken.Count) { "Not installed: $($broken.id -join ', ')"; exit 1 }
+          'every tool with a package for this system is installed'

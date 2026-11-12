@@ -58,6 +58,8 @@ function Invoke-Quiet { param([string]$Exe, [string[]]$ExeArgs)
 
 # One row per tool: command that proves it, package id per system, who needs it.
 # A missing id means there is no package for that system: the row says where to get it.
+# "snap:<name>" installs a classic snap; "script:<url>" runs the project's own installer.
+$rokitScript = 'https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh'
 $tools = @(
     @{ id = 'git';     cmd = 'git';     need = $true;      windows = 'Git.Git';                  macos = 'git';              linux = 'git' }
     @{ id = 'gh';      cmd = 'gh';      need = $true;      windows = 'GitHub.cli';               macos = 'gh';               linux = 'gh' }
@@ -65,10 +67,12 @@ $tools = @(
     @{ id = 'node';    cmd = 'node';    need = $true;      windows = 'OpenJS.NodeJS.LTS';        macos = 'node';             linux = 'nodejs' }
     @{ id = 'blender'; cmd = 'blender'; need = $wantArt;   windows = 'BlenderFoundation.Blender'; macos = '--cask blender';  linux = 'blender'
        paths = @('C:\Program Files\Blender Foundation', '/Applications/Blender.app') }
-    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; help = 'https://obsidian.md'
-       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app') }
-    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; help = 'https://github.com/rojo-rbx/rokit#installation' }
-    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; help = 'https://code.visualstudio.com' }
+    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; linux = 'snap:obsidian'; help = 'https://obsidian.md'
+       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app', '/snap/bin/obsidian') }
+    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; macos = "script:$rokitScript"; linux = "script:$rokitScript"; help = 'https://github.com/rojo-rbx/rokit#installation'
+       paths = @((Join-Path $HOME '.rokit/bin/rokit')) }
+    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; linux = 'snap:code'; help = 'https://code.visualstudio.com'
+       paths = @('/Applications/Visual Studio Code.app', '/snap/bin/code') }
 )
 
 function Get-ToolVersion { param($Tool)
@@ -81,18 +85,45 @@ function Test-Tool { param($Tool)
     foreach ($p in @($Tool.paths)) { if ($p -and (Test-Path -LiteralPath $p)) { return $true } }
     return $false }
 
+# Runs an installer and keeps the tail of what it printed: a failed install must say why.
+$script:installLog = ''; $script:aptUpdated = $false
+function Invoke-Install { param([string]$Exe, [string[]]$ExeArgs)
+    $r = Invoke-Quiet $Exe $ExeArgs
+    $script:installLog = $r.ok ? '' : (($r.out -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 2) -join ' | ') }
+
 function Install-Tool { param($Tool)
+    $script:installLog = ''
     $pkg = $Tool[$os]
     if (-not $pkg) { return $false }
+    if ($pkg -like 'script:*') {
+        # The installer is downloaded to a file first so a failed download is not piped into a shell.
+        $file = Join-Path ([IO.Path]::GetTempPath()) "nashei-install-$($Tool.id).sh"
+        try { Invoke-WebRequest -Uri $pkg.Substring(7) -OutFile $file -UseBasicParsing } catch { return $false }
+        Invoke-Install bash @($file)
+        return (Test-Tool $Tool)
+    }
+    if ($pkg -like 'snap:*') {
+        if (-not (Test-Cmd snap)) { $script:installLog = 'falta snap'; return $false }
+        # The snap store times out now and then (HTTP 408): three attempts before giving up.
+        foreach ($attempt in 1..3) {
+            Invoke-Install sudo @('snap', 'install', $pkg.Substring(5), '--classic')
+            if (Test-Tool $Tool) { return $true }
+            if ($attempt -lt 3) { Start-Sleep -Seconds (15 * $attempt) }
+        }
+        return $false
+    }
     switch ($os) {
-        'windows' { if (-not (Test-Cmd winget)) { return $false }
-                    & winget install --id $pkg --exact --silent --accept-package-agreements --accept-source-agreements | Out-Null }
-        'macos'   { if (-not (Test-Cmd brew)) { return $false }
-                    & brew install @($pkg -split ' ') | Out-Null }
-        'linux'   { if (Test-Cmd apt-get) { & sudo apt-get install -y $pkg | Out-Null }
-                    elseif (Test-Cmd dnf) { & sudo dnf install -y $pkg | Out-Null }
-                    elseif (Test-Cmd pacman) { & sudo pacman -S --noconfirm $pkg | Out-Null }
-                    else { return $false } }
+        'windows' { if (-not (Test-Cmd winget)) { $script:installLog = 'falta winget (App Installer)'; return $false }
+                    Invoke-Install winget @('install', '--id', $pkg, '--exact', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') }
+        'macos'   { if (-not (Test-Cmd brew)) { $script:installLog = 'falta Homebrew: https://brew.sh'; return $false }
+                    Invoke-Install brew (@('install') + @($pkg -split ' ')) }
+        'linux'   { if (Test-Cmd apt-get) {
+                        # A machine that never refreshed its package index cannot find anything.
+                        if (-not $script:aptUpdated) { Invoke-Install sudo @('apt-get', 'update', '-qq'); $script:aptUpdated = $true }
+                        Invoke-Install sudo @('apt-get', 'install', '-y', '-qq', $pkg) }
+                    elseif (Test-Cmd dnf) { Invoke-Install sudo @('dnf', 'install', '-y', $pkg) }
+                    elseif (Test-Cmd pacman) { Invoke-Install sudo @('pacman', '-S', '--noconfirm', $pkg) }
+                    else { $script:installLog = 'no hay apt-get, dnf ni pacman'; return $false } }
     }
     # A fresh install is not on PATH of this process on Windows: re-read it.
     if ($IsWindows) { $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') }
@@ -104,7 +135,9 @@ foreach ($tool in $tools) {
     $have = Test-Tool $tool
     if (-not $have -and $Action -eq 'install') { $have = Install-Tool $tool }
     $hint = $tool[$os] ? "paquete $($tool[$os])" : "sin paquete para $os`: $($tool.help)"
-    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint) }
+    if (-not $have -and $script:installLog) { $hint += " ($($script:installLog))" }
+    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint)
+    $results[$results.Count - 1] | Add-Member -NotePropertyName installable -NotePropertyValue ([bool]$tool[$os]) }
 
 # Roblox Studio has no Linux build and no package: it is installed from create.roblox.com.
 $studioPaths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Roblox\Versions'), '/Applications/RobloxStudio.app')
