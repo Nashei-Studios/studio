@@ -1,10 +1,12 @@
 name: install-smoke
 
-# Runs the real first-run install on a clean machine of each system (issue 42). Manual: it downloads
-# Blender and friends, so it is not part of every PR. Fails when a tool that has a package for that
+# Runs the real first-run install on a clean machine of each system (issue 42). It downloads Blender
+# and friends, so it only runs by hand or when the installer itself changes. Fails when a tool that has a package for that
 # system is not installed afterwards.
 on:
   workflow_dispatch:
+  pull_request:
+    paths: [tools/puesto.ps1, .github/workflows/install-smoke.yml]
 
 permissions:
   contents: read
