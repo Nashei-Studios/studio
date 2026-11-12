@@ -11,6 +11,10 @@
     push   zips every sub-folder of -Path that changed and uploads it, then updates the manifest.
     pull   downloads and extracts every package whose hash differs from the local copy.
     status prints what differs, changes nothing.
+    index  uploads the per-file index of every local package that Drive already has, without re-zipping.
+
+  Next to every <slug>.zip goes <slug>.files.json (path, bytes and MD5 of each file), so that
+  tools/inventario.ps1 can tell whether a file on someone's computer is already in the library.
 
   Needs rclone with a remote that points at the studio folder (docs/drive.md).
 
@@ -22,7 +26,7 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory, Position = 0)][ValidateSet('push', 'pull', 'status')][string]$Action,
+    [Parameter(Mandatory, Position = 0)][ValidateSet('push', 'pull', 'status', 'index')][string]$Action,
     [Parameter(Mandatory)][string]$Path,
     [string]$Remote = 'nashei',
     [string]$Folder = '10-kits',
@@ -35,7 +39,9 @@ $ErrorActionPreference = 'Stop'
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $env:RCLONE_LOG_LEVEL = 'ERROR'
 $target = "${Remote}:$Folder"
-$tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+# Windows ships bsdtar, which writes zip; GNU tar on Linux does not, so elsewhere .NET does it.
+$tar = $IsWindows ? (Join-Path $env:SystemRoot 'System32\tar.exe') : $null
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $stateFile = Join-Path $Path '.kits-state.json'
 
 function Invoke-Rclone {
@@ -78,6 +84,32 @@ function Get-Fingerprint {
     return '{0}:{1}:{2}' -f $files.Count, [long]$sum, ($newest ? $newest.ToString('yyyyMMddHHmmss') : '0')
 }
 
+function Compress-Package { param([string]$Dir, [string]$Zip)
+    if ($tar) { & $tar -a -cf $Zip -C (Split-Path $Dir -Parent) (Split-Path $Dir -Leaf); return $LASTEXITCODE }
+    try { [IO.Compression.ZipFile]::CreateFromDirectory($Dir, $Zip, [IO.Compression.CompressionLevel]::Optimal, $true); return 0 }
+    catch { Write-Warning "$_"; return 1 }
+}
+
+function Expand-Package { param([string]$Zip, [string]$Into)
+    if ($tar) { & $tar -xf $Zip -C $Into; return $LASTEXITCODE }
+    try { [IO.Compression.ZipFile]::ExtractToDirectory($Zip, $Into, $true); return 0 }
+    catch { Write-Warning "$_"; return 1 }
+}
+
+# Per-file index of a package: what lets a computer be compared against the library.
+function Send-FileIndex { param([string]$Dir, [string]$Slug)
+    $md5 = [Security.Cryptography.MD5]::Create()
+    $entries = foreach ($file in Get-ChildItem -LiteralPath $Dir -Recurse -File -Force) {
+        $stream = $file.OpenRead()
+        try { $hash = [Convert]::ToHexString($md5.ComputeHash($stream)).ToLowerInvariant() } finally { $stream.Dispose() }
+        @{ path = [IO.Path]::GetRelativePath($Dir, $file.FullName).Replace([char]92, [char]47); bytes = $file.Length; md5 = $hash }
+    }
+    $local = Join-Path $Stage "$Slug.files.json"
+    @{ slug = $Slug; files = @($entries) } | ConvertTo-Json -Depth 4 -Compress | Set-Content -LiteralPath $local -Encoding utf8
+    Invoke-Rclone copy $local $target
+    Remove-Item -LiteralPath $local -Force
+}
+
 function Get-Packages {
     Get-ChildItem -LiteralPath $Path -Directory |
         Where-Object { $_.Name -notmatch '^[_.]' } |
@@ -105,10 +137,9 @@ switch ($Action) {
             if ($entry -and $entry.fingerprint -eq $print) { "same  $slug"; continue }
             $zip = Join-Path $Stage "$slug.zip"
             Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
-            & $tar -a -cf $zip -C $dir.Parent.FullName $slug
-            if ($LASTEXITCODE -ne 0) { "FAIL  $slug (zip exited with $LASTEXITCODE)"; continue }
+            if ((Compress-Package $dir.FullName $zip) -ne 0) { "FAIL  $slug (zip failed)"; continue }
             $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-            try { Invoke-Rclone copy $zip $target } catch { "FAIL  $slug ($_)"; continue }
+            try { Invoke-Rclone copy $zip $target; Send-FileIndex $dir.FullName $slug } catch { "FAIL  $slug ($_)"; continue }
             $meta = $index[$slug]
             $manifest.packages[$slug] = @{
                 file        = "$slug.zip"
@@ -139,12 +170,20 @@ switch ($Action) {
             $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($hash -ne $entry.sha256) { "FAIL  $slug (hash does not match the manifest)"; continue }
             if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
-            & $tar -xf $zip -C $Path
-            if ($LASTEXITCODE -ne 0) { "FAIL  $slug (unzip exited with $LASTEXITCODE)"; continue }
+            if ((Expand-Package $zip $Path) -ne 0) { "FAIL  $slug (unzip failed)"; continue }
             $state[$slug] = $hash
             $state | ConvertTo-Json | Set-Content -LiteralPath $stateFile -Encoding utf8
             Remove-Item -LiteralPath $zip -Force
             "got   $slug"
+        }
+    }
+    'index' {
+        $have = @(& rclone lsf $target --include '*.files.json' 2>$null)
+        foreach ($dir in Get-Packages) {
+            $slug = $dir.Name
+            if (-not $manifest.packages[$slug]) { "skip  $slug (not in Drive: push it first)"; continue }
+            if ($have -contains "$slug.files.json") { "same  $slug"; continue }
+            try { Send-FileIndex $dir.FullName $slug; "sent  $slug" } catch { "FAIL  $slug ($_)" }
         }
     }
     'status' {

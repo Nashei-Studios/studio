@@ -8,7 +8,7 @@ Si eres nuevo, lee en este orden:
 2. [CONTEXT.md](CONTEXT.md): el documento de contexto. Se le pasa a la IA antes de pedirle cualquier cosa.
 3. [docs/acuerdos.md](docs/acuerdos.md): los acuerdos del equipo (horas, bloqueos, cuándo se cierra un juego).
 4. [docs/ecosistema.md](docs/ecosistema.md): qué repo, qué carpeta de Drive y qué página de Notion sirve para qué.
-5. [docs/instalacion.md](docs/instalacion.md): qué instalar, según si haces arte o también código.
+5. [docs/primera-vez.md](docs/primera-vez.md): una línea para tu agente y deja tu computador listo, en cualquier sistema. Detalle de cada herramienta en [docs/instalacion.md](docs/instalacion.md).
 6. [docs/como-funciona.md](docs/como-funciona.md): el sistema completo, de la idea al cierre de un juego.
 7. [docs/flujo-de-trabajo.md](docs/flujo-de-trabajo.md): de la idea al changelog, con interrogatorio, spec, historias y etiquetas.
 8. [docs/verificacion.md](docs/verificacion.md): la lista que corre el agente de cada persona para comprobar que su equipo quedó conectado.
