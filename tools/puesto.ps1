@@ -11,6 +11,11 @@
   A step that needs the person (a browser login, an invitation) is never automated: it is printed
   as PERSONA with the exact command to run.
 
+  Someone whose repos or library already live elsewhere writes <Base>/puesto.json once:
+    { "repos": ["D:/code/nashei", "D:/code/roblox"], "biblioteca": { "10-kits": "D:/Roblox/kits" } }
+  The first folder of "repos" receives the clones that are missing. A clone is recognised by its
+  origin URL, not by its folder name.
+
 .EXAMPLE
   pwsh tools/puesto.ps1 install
   pwsh tools/puesto.ps1 check -Perfil arte
@@ -23,8 +28,8 @@ param(
     [ValidateSet('arte', 'codigo', 'todo')][string]$Perfil = 'todo',
     # Where clones and the library live. Pick once and keep it.
     [string]$Base = (Join-Path $HOME 'Nashei'),
-    [string]$Repos = (Join-Path $Base 'repos'),
-    [string]$Biblioteca = (Join-Path $Base 'biblioteca'),
+    [string[]]$Repos = @(),
+    [string]$Biblioteca = '',
     [string]$Org = 'Nashei-Studios',
     [string]$Remote = 'nashei',
     [switch]$Json
@@ -34,6 +39,14 @@ $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
 $results = [System.Collections.Generic.List[object]]::new()
+
+$config = @{}
+$configFile = Join-Path $Base 'puesto.json'
+if (Test-Path -LiteralPath $configFile) { $config = Get-Content -LiteralPath $configFile -Raw | ConvertFrom-Json -AsHashtable }
+$Repos = @($Repos | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+if (-not $Repos.Count) { $Repos = $config.repos ? @($config.repos) : @(Join-Path $Base 'repos') }
+if (-not $Biblioteca) { $Biblioteca = Join-Path $Base 'biblioteca' }
+$libraryMap = $config.biblioteca ?? @{}
 
 function Add-Result { param([string]$Id, [string]$State, [string]$What, [string]$Detail = '')
     $results.Add([pscustomobject]@{ id = $Id; state = $State; what = $What; detail = $Detail }) }
@@ -56,6 +69,11 @@ $tools = @(
     @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; help = 'https://github.com/rojo-rbx/rokit#installation' }
     @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; help = 'https://code.visualstudio.com' }
 )
+
+function Get-ToolVersion { param($Tool)
+    if (-not (Test-Cmd $Tool.cmd) -or $Tool.cmd -in 'code', 'obsidian', 'blender') { return '' }
+    $v = Invoke-Quiet $Tool.cmd @('--version')
+    return $v.ok ? (($v.out -split "`n")[0] -replace '^\D*', '').Trim() : '' }
 
 function Test-Tool { param($Tool)
     if (Test-Cmd $Tool.cmd) { return $true }
@@ -85,7 +103,7 @@ foreach ($tool in $tools) {
     $have = Test-Tool $tool
     if (-not $have -and $Action -eq 'install') { $have = Install-Tool $tool }
     $hint = $tool[$os] ? "paquete $($tool[$os])" : "sin paquete para $os`: $($tool.help)"
-    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? '' : $hint) }
+    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint) }
 
 # Roblox Studio has no Linux build and no package: it is installed from create.roblox.com.
 $studioPaths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Roblox\Versions'), '/Applications/RobloxStudio.app')
@@ -113,11 +131,25 @@ if ($login) {
 }
 
 # ---- 3. Clones. Every repo of the organization, discovered, never a fixed list. ----
-New-Item -ItemType Directory -Force $Repos | Out-Null
+New-Item -ItemType Directory -Force $Repos[0] | Out-Null
+# Existing clones, by origin URL: two levels deep under every root.
+$clones = @{}
+foreach ($root in $Repos) {
+    if (-not (Test-Path -LiteralPath $root)) { continue }
+    $level1 = @(Get-ChildItem -LiteralPath $root -Directory -Force -ErrorAction SilentlyContinue)
+    $level2 = @($level1 | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullName '.git')) } |
+        ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Directory -Force -ErrorAction SilentlyContinue })
+    foreach ($dir in $level1 + $level2) {
+        if (-not (Test-Path -LiteralPath (Join-Path $dir.FullName '.git'))) { continue }
+        $url = & git -C $dir.FullName remote get-url origin 2>$null
+        if ("$url" -match "[:/]$([regex]::Escape($Org))/(.+?)(\.git)?/?$" -and -not $clones.ContainsKey($Matches[1])) { $clones[$Matches[1]] = $dir.FullName }
+    }
+}
 $missing = @(); $noHooks = @()
 foreach ($repo in @($list)) {
-    $dir = Join-Path $Repos $repo.name
-    if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) {
+    $dir = $clones[$repo.name]
+    if (-not $dir) {
+        $dir = Join-Path $Repos[0] $repo.name
         if ($Action -eq 'install') { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
@@ -127,7 +159,7 @@ foreach ($repo in @($list)) {
     }
 }
 if ($login) {
-    Add-Result 'clones' ($missing.Count ? 'FALLA' : 'PASA') "Clones en $Repos" ($missing -join ', ')
+    Add-Result 'clones' ($missing.Count ? 'FALLA' : 'PASA') "Clones en $($Repos -join ', ')" ($missing -join ', ')
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
 }
 
@@ -152,13 +184,13 @@ if ($libOk) {
     $behind = @()
     foreach ($folder in $folders) {
         if (-not (Invoke-Quiet rclone @('lsf', "${Remote}:$folder/manifest.json")).out) { continue }
-        $local = Join-Path $Biblioteca $folder
+        $local = $libraryMap[$folder] ?? (Join-Path $Biblioteca $folder)
         if ($Action -eq 'install') { & pwsh -NoProfile -File $kits pull -Path $local -Remote $Remote -Folder $folder | Out-Null }
         $status = & pwsh -NoProfile -File $kits status -Path $local -Remote $Remote -Folder $folder
         $n = @($status | Where-Object { $_ -match '^(only in Drive|differs)' }).Count
         if ($n) { $behind += "$folder ($n)" }
     }
-    Add-Result 'biblioteca' ($behind.Count ? 'FALLA' : 'PASA') "Biblioteca al día en $Biblioteca" ($behind -join ', ')
+    Add-Result 'biblioteca' ($behind.Count ? 'FALLA' : 'PASA') 'Biblioteca al día con el Drive' ($behind -join ', ')
 }
 
 # ---- 5. Agent connections. Only what can be read without opening an app. ----
