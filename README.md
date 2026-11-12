@@ -32,6 +32,10 @@ Si eres nuevo, lee en este orden:
 | [`drain-for-loot`](https://github.com/Nashei-Studios/drain-for-loot) | El juego en curso | El equipo, según los dueños por carpeta |
 | [`plus-one-mining`](https://github.com/Nashei-Studios/plus-one-mining) | Juego 1, cerrado. Queda como referencia de código y de errores | Solo lectura |
 | [`.github`](https://github.com/Nashei-Studios/.github) | El perfil público de la organización | Victor |
+| [`art`](https://github.com/Nashei-Studios/art) | Modelos hechos en Blender: recetas, fichas y exportaciones `.glb` | Quien abre el issue del asset |
+| [`claude-toolkit`](https://github.com/Nashei-Studios/claude-toolkit) | Skills de Claude Code que comparte el estudio | Todos proponen por PR |
+| [`project-template`](https://github.com/Nashei-Studios/project-template) | Plantilla para un proyecto que no es de Roblox o una hackathon: tablero, hooks, grill de sesión, espejo a Notion | Victor |
+| `legacy-drain-the-sea`, `legacy-grassgame`, `legacy-bowl-brawl` | Experiencias anteriores de Leon, para leer y rescatar piezas | Solo lectura |
 
 ## Árbol de este repo
 

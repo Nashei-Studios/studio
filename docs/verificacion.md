@@ -28,6 +28,8 @@ Cada fila es PASA, FALLA o NO APLICA. Una que no se pudo correr es FALLA, no PAS
 | 16 | Biblioteca de kits en tu equipo | `rclone lsf nashei:` y luego `pwsh studio/tools/kits.ps1 status -Path <tu carpeta de kits>` ([guía](drive.md)) | Lista las carpetas del Drive y el estado de cada paquete |
 | 17 | Ves los legacy | `gh repo list Nashei-Studios --topic legacy` | Lista `legacy-drain-the-sea`, `legacy-grassgame` y `legacy-bowl-brawl` |
 | 18 | El tablero te avisa solo | Abrir Claude Code dentro del clon del juego | Al iniciar muestra "Team board" con los mensajes sin leer |
+| 19 | Blender y su compuerta (solo si haces arte) | En un clon de `art`: `pwsh tools/build.ps1 -Asset demo-cofre` | Termina con `GATE True` y deja `exports/cofre.glb` |
+| 20 | Blender conectado a tu agente (solo si haces arte) | Con Blender abierto: `claude mcp list` | La línea `blender` dice Connected |
 ## Cómo se informa
 
 Un solo comentario en la discusión [Conecta a tu agente](https://github.com/orgs/Nashei-Studios/discussions/17). El Agent Board queda para el trabajo del día.
