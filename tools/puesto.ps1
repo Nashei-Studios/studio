@@ -182,6 +182,18 @@ if ($os -eq 'linux') { Add-Result 'studio-app' 'NO APLICA' 'Roblox Studio' 'no e
 elseif ($studioPaths | Where-Object { Test-Path -LiteralPath $_ }) { Add-Result 'studio-app' 'PASA' 'Roblox Studio' }
 else { Add-Result 'studio-app' 'PERSONA' 'Roblox Studio' 'instalar desde https://create.roblox.com y entrar con tu cuenta' }
 
+# VS Code Live Share, to code together live on the branch of whoever shares. Never FALLA: it is a personal install.
+$liveShareId = 'ms-vsliveshare.vsliveshare'
+$liveShareInstall = "code --install-extension $liveShareId"
+if (-not $wantCode) { Add-Result 'live-share' 'NO APLICA' 'VS Code con Live Share' "no lo pide el perfil $Perfil" }
+elseif (-not (Test-Cmd code)) { Add-Result 'live-share' 'PERSONA' 'VS Code con Live Share' "no hay code en el PATH: abre VS Code, Ctrl+Shift+P, Shell Command: Install 'code' command in PATH, y corre: $liveShareInstall" }
+else {
+    $extensions = Invoke-Quiet code @('--list-extensions')
+    $hasLiveShare = $extensions.ok -and (@($extensions.out -split "`n" | ForEach-Object { $_.Trim() }) -contains $liveShareId)
+    if ($hasLiveShare) { Add-Result 'live-share' 'PASA' 'VS Code con Live Share' }
+    else { Add-Result 'live-share' 'PERSONA' 'VS Code con Live Share' "instalar la extensión: $liveShareInstall" }
+}
+
 # ---- 2. GitHub session and membership ----
 $login = $null; $list = @()
 if (Test-Cmd gh) {
