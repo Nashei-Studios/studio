@@ -194,6 +194,23 @@
       }
     }
   },
+  "escritorio": {
+    "nombre": "escritorio",
+    "descripcion": "MCP de escritorio por stdio: abrir Studio, pulsar Connect del aviso de Rojo, abrir una place. Claude Code lo lanza con la sesión, sin tarea programada ni puerto. Linux no tiene.",
+    "windows": {
+      "paquete": "windows-mcp",
+      "fuente": "https://github.com/CursorTouch/Windows-MCP",
+      "comando": "uvx",
+      "args": ["windows-mcp", "serve", "--exclude-tools", "PowerShell,FileSystem,Registry,Scrape"]
+    },
+    "macos": {
+      "paquete": "@steipete/peekaboo",
+      "fuente": "https://github.com/steipete/Peekaboo",
+      "comando": "npx",
+      "args": ["-y", "@steipete/peekaboo", "mcp"],
+      "permisos": ["Screen Recording", "Accessibility"]
+    }
+  },
   "transcripcion": {
     "motor": "whisper-cli",
     "modelo": "~/Nashei/models/whisper/ggml-small.bin",

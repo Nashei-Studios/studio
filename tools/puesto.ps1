@@ -53,6 +53,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 . (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
+. (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -90,7 +91,12 @@ function Invoke-Quiet { param([string]$Exe, [string[]]$ExeArgs)
 # A missing id means there is no package for that system: the row says where to get it.
 # "snap:<name>" installs a classic snap; "script:<url>" runs the project's own installer.
 $rokitScript = 'https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh'
+# The desktop MCP of this system (issue 97), from the ecosystem config; $null where there is none (Linux).
+$escritorioSpec = Get-EscritorioSpec $ecosystem $os
 $tools = @(
+    # uv only matters where the desktop MCP runs through uvx: the need comes from the config, not from the system name.
+    @{ id = 'uv';      cmd = 'uvx';     need = [bool]($escritorioSpec -and $escritorioSpec.comando -eq 'uvx'); windows = 'astral-sh.uv'; macos = 'uv'; linux = 'script:https://astral.sh/uv/install.sh'; help = 'https://docs.astral.sh/uv/'
+       paths = @((Join-Path $HOME '.local/bin/uvx'), (Join-Path $HOME '.local/bin/uvx.exe')) }
     @{ id = 'git';     cmd = 'git';     need = $true;      windows = 'Git.Git';                  macos = 'git';              linux = 'git' }
     @{ id = 'gh';      cmd = 'gh';      need = $true;      windows = 'GitHub.cli';               macos = 'gh';               linux = 'gh' }
     @{ id = 'rclone';  cmd = 'rclone';  need = $true;      windows = 'Rclone.Rclone';            macos = 'rclone';           linux = 'rclone' }
@@ -297,6 +303,26 @@ if (Test-Cmd claude) {
         $line = @($mcp.out -split "`n" | Where-Object { $_ -match "^$server\b" })[0]
         $state = -not $line ? 'PERSONA' : ($line -match 'Connected' ? 'PASA' : 'PERSONA')
         Add-Result "mcp-$server" $state "Agente conectado a $server" ($state -eq 'PASA' ? '' : 'ver docs/primera-vez.md, tabla de conexiones')
+    }
+    # The desktop MCP (issue 97): the agent opens Studio, presses Connect on Rojo's notice and opens a place by itself.
+    # install registers it at user level when it is absent; a row already registered (any transport) is left as it is.
+    $escritorioName = $ecosystem.escritorio.nombre
+    if (-not $escritorioSpec) { Add-Result "mcp-$escritorioName" 'NO APLICA' 'Agente maneja el escritorio' "no hay MCP de escritorio para $os" }
+    else {
+        $escritorioState = Get-EscritorioState $mcp.out $escritorioName
+        $exe = (Get-Command $escritorioSpec.comando -ErrorAction SilentlyContinue).Source
+        if ($escritorioState -eq 'ausente' -and $doInstall -and $exe) {
+            Invoke-Quiet claude (Get-EscritorioAddArgs $ecosystem $os $exe) | Out-Null
+            $mcp = Invoke-Quiet claude @('mcp', 'list')
+            $escritorioState = Get-EscritorioState $mcp.out $escritorioName
+        }
+        $addCommand = "claude $((Get-EscritorioAddArgs $ecosystem $os) -join ' ')"
+        $escritorioDetail = switch ($escritorioState) {
+            'conectado' { '' }
+            'ausente' { $exe ? "registrarlo con: $addCommand" : "falta $($escritorioSpec.comando) ($($escritorioSpec.help ?? $escritorioSpec.fuente)); luego: $addCommand" }
+            default { "registrado pero sin conexión: prueba a mano $($escritorioSpec.comando) $($escritorioSpec.args -join ' ')" + ($escritorioSpec.permisos ? "; en $os la persona debe dar permisos de $($escritorioSpec.permisos -join ' y ') a la terminal" : '') }
+        }
+        Add-Result "mcp-$escritorioName" ($escritorioState -eq 'conectado' ? 'PASA' : 'PERSONA') 'Agente maneja el escritorio (abrir Studio, Connect de Rojo, abrir una place)' $escritorioDetail
     }
 } else { Add-Result 'mcp' 'NO APLICA' 'Conexiones MCP' 'no hay Claude Code en este equipo; tu agente usa su propio modo de conectarse' }
 
