@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Configuración del ecosistema de Nashei Studios",
   "type": "object",
-  "required": ["version", "github", "notion", "drive", "roblox", "reuniones"],
+  "required": ["version", "github", "notion", "drive", "roblox", "personas", "planificacion", "reuniones"],
   "properties": {
     "version": { "type": "integer" },
     "github": {
@@ -81,6 +81,58 @@
       "type": "object",
       "required": ["grupo_id"],
       "properties": { "grupo_id": { "type": "integer" } }
+    },
+    "personas": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["login", "rol", "estado", "areas", "foco"],
+        "properties": {
+          "login": { "type": "string", "pattern": "^[A-Za-z0-9-]+$" },
+          "rol": { "type": "string", "minLength": 1 },
+          "estado": { "type": "string", "enum": ["definido", "por-definir"] },
+          "areas": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "foco": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "planificacion": {
+      "type": "object",
+      "required": ["areas", "ejes_globales", "tope_issues_por_lote", "tope_tareas_detalladas", "tope_sub_issues_por_padre", "preguntas_por_responsable", "preguntas_globales_minimas", "borrador", "milestone_ola", "marcador_pregunta", "etiqueta_pruebas", "prefijo_pruebas", "marca_pregunta_prueba", "campos"],
+      "properties": {
+        "areas": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "ejes_globales": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "tope_issues_por_lote": { "type": "integer" },
+        "tope_tareas_detalladas": { "type": "integer" },
+        "tope_sub_issues_por_padre": { "type": "integer" },
+        "preguntas_por_responsable": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+        "preguntas_globales_minimas": { "type": "integer" },
+        "borrador": {
+          "type": "object",
+          "required": ["ruta", "rama"],
+          "properties": { "ruta": { "type": "string", "pattern": "[{]n[}]" }, "rama": { "type": "string", "pattern": "[{]n[}]" } }
+        },
+        "milestone_ola": { "type": "string", "pattern": "[{]n[}]" },
+        "marcador_pregunta": { "type": "string", "minLength": 1 },
+        "etiqueta_pruebas": { "type": "string", "minLength": 1 },
+        "prefijo_pruebas": { "type": "string", "minLength": 1 },
+        "marca_pregunta_prueba": { "type": "string", "minLength": 1 },
+        "campos": {
+          "type": "object",
+          "required": ["etapa", "area", "prioridad", "tamano", "iteracion", "responsable"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["campo", "tipo"],
+            "properties": {
+              "campo": { "type": "string", "minLength": 1 },
+              "tipo": { "type": "string", "enum": ["select", "iteration", "builtin"] },
+              "opciones": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "nota": { "type": "string" }
+            }
+          }
+        }
+      }
     },
     "transcripcion": {
       "type": "object",

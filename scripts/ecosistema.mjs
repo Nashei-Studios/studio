@@ -3,6 +3,8 @@
 // Usage (Node 20+, no dependencies):
 //   node scripts/ecosistema.mjs validate            check config/ecosistema.json against its schema
 //   node scripts/ecosistema.mjs get <ruta.con.puntos>  print one value (e.g. notion.bases.reuniones.data_source_id)
+//   node scripts/ecosistema.mjs responsables <area>...  who must be asked about an item (personas + planificacion)
+//   node scripts/ecosistema.mjs lote <items.json>       check a draft batch against the caps
 //   node scripts/ecosistema.mjs discover [--write]  look every id up by name (rclone, Notion) and report drift
 //
 // Exit code: 0 clean, 1 invalid config or drift found, 2 usage error. Discovery of a service that is
@@ -57,6 +59,52 @@ const loadSchema = () => JSON.parse(readFileSync(SCHEMA_PATH, "utf8"));
 /** Returns the value at a dotted path, or undefined. */
 export function getPath(config, dotted) {
   return dotted.split(".").reduce((acc, key) => (acc && typeof acc === "object" ? acc[key] : undefined), config);
+}
+
+/** Cross-checks that the schema cannot express: unique logins, owned areas that exist, sane caps. */
+export function checkInvariantes(config) {
+  const errors = [];
+  const { personas, planificacion: plan } = config;
+  const logins = Object.values(personas).map((p) => p.login.toLowerCase());
+  if (new Set(logins).size !== logins.length) errors.push("personas: login repetido");
+  for (const [key, p] of Object.entries(personas)) {
+    for (const area of p.areas) if (!plan.areas.includes(area)) errors.push(`personas.${key}.areas: "${area}" no está en planificacion.areas`);
+    if (p.estado === "por-definir" && (p.areas.length || p.foco.length)) errors.push(`personas.${key}: con estado por-definir no puede traer areas ni foco`);
+    if (p.estado === "definido" && !p.areas.length) errors.push(`personas.${key}: definida pero sin areas`);
+  }
+  const [min, max] = plan.preguntas_por_responsable;
+  if (min < 1 || min > max) errors.push("planificacion.preguntas_por_responsable: rango invalido");
+  if (plan.tope_tareas_detalladas > plan.tope_issues_por_lote) errors.push("planificacion: tope_tareas_detalladas supera tope_issues_por_lote");
+  if (plan.tope_sub_issues_por_padre > 100) errors.push("planificacion: GitHub admite 100 sub-issues por padre");
+  return errors;
+}
+
+/**
+ * Who must be asked about an item that touches `areas`. Never assumes a role:
+ * an area nobody covers is returned in `sinResponsable` and the question goes to the whole team.
+ */
+export function responsables(config, areas) {
+  const porArea = {};
+  const sinResponsable = [];
+  for (const area of areas) {
+    const owners = Object.values(config.personas).filter((p) => p.estado === "definido" && p.areas.includes(area)).map((p) => p.login);
+    if (owners.length) porArea[area] = owners; else sinResponsable.push(area);
+  }
+  const preguntar = [...new Set(Object.values(porArea).flat())];
+  return { porArea, sinResponsable, preguntar, cruzaAreas: preguntar.length > 1 };
+}
+
+/** Checks a draft batch against the caps. Items: { id, nivel: "epica"|"historia"|"tarea", padre?: string }. */
+export function checkLote(config, items) {
+  const { tope_issues_por_lote: total, tope_tareas_detalladas: tareas, tope_sub_issues_por_padre: porPadre } = config.planificacion;
+  const errors = [];
+  if (items.length > total) errors.push(`el lote trae ${items.length} issues y el tope es ${total}`);
+  const nTareas = items.filter((i) => i.nivel === "tarea").length;
+  if (nTareas > tareas) errors.push(`el lote trae ${nTareas} tareas detalladas y el tope es ${tareas}`);
+  const hijos = new Map();
+  for (const i of items) if (i.padre) hijos.set(i.padre, (hijos.get(i.padre) ?? 0) + 1);
+  for (const [padre, n] of hijos) if (n > porPadre) errors.push(`${padre} tiene ${n} sub-issues y el tope es ${porPadre}`);
+  return errors;
 }
 
 /** Compares configured Drive folders with an `rclone lsjson --dirs-only` listing. */
@@ -147,6 +195,19 @@ async function main(argv) {
     console.log(typeof value === "object" ? JSON.stringify(value, null, 2) : String(value));
     return 0;
   }
+  if (cmd === "responsables") {
+    const areas = argv.slice(1);
+    if (!areas.length) { console.error("uso: ecosistema.mjs responsables <area> [<area>...]"); return 2; }
+    console.log(JSON.stringify(responsables(loadConfig(), areas), null, 2));
+    return 0;
+  }
+  if (cmd === "lote") {
+    if (!arg) { console.error("uso: ecosistema.mjs lote <items.json>"); return 2; }
+    const errors = checkLote(loadConfig(), JSON.parse(readFileSync(arg, "utf8")));
+    if (errors.length) { console.error(errors.join(String.fromCharCode(10))); return 1; }
+    console.log("lote dentro de los topes");
+    return 0;
+  }
   if (cmd === "discover") {
     const config = loadConfig();
     const write = argv.includes("--write");
@@ -164,7 +225,7 @@ async function main(argv) {
     if (write && drift) { config.actualizado = new Date().toISOString().slice(0, 10); writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n"); console.log("config actualizada; revisa el diff y abre la PR"); }
     return drift ? 1 : 0;
   }
-  console.error("uso: ecosistema.mjs validate | get <ruta> | discover [--write]");
+  console.error("uso: ecosistema.mjs validate | get <ruta> | responsables <area>... | lote <items.json> | discover [--write]");
   return 2;
 }
 
