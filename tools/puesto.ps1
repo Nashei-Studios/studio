@@ -31,7 +31,10 @@ param(
     [string[]]$Repos = @(),
     [string]$Biblioteca = '',
     [string]$Org = 'Nashei-Studios',
-    [string]$Remote = 'nashei',
+    # Empty = drive.remoto of config/ecosistema.json.
+    [string]$Remote = '',
+    # Runs only the Drive step (remote, library, Whisper model): no tool installs, no clones. Used by the smoke test.
+    [switch]$SoloDrive,
     # Test hook: comma-separated names to treat as present ('ninguna' = none) instead of the real environment.
     [string]$LlavesSimuladas = $null,
     [switch]$Json
@@ -42,6 +45,11 @@ $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
 $results = [System.Collections.Generic.List[object]]::new()
+$doInstall = $Action -eq 'install' -and -not $SoloDrive
+
+# Everything about the Drive (remote name, root id, link, Whisper model) comes from the ecosystem config, never from this script.
+$ecosystem = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../config/ecosistema.json') -Raw | ConvertFrom-Json
+if (-not $Remote) { $Remote = $ecosystem.drive.remoto }
 
 $config = @{}
 $configFile = Join-Path $Base 'puesto.json'
@@ -98,10 +106,17 @@ function Install-Tool { param($Tool)
     $pkg = $Tool[$os]
     if (-not $pkg) { return $false }
     if ($pkg -like 'script:*') {
-        # The installer is downloaded to a file first so a failed download is not piped into a shell.
-        $file = Join-Path ([IO.Path]::GetTempPath()) "nashei-install-$($Tool.id).sh"
-        try { Invoke-WebRequest -Uri $pkg.Substring(7) -OutFile $file -UseBasicParsing } catch { return $false }
-        Invoke-Install bash @($file)
+        # The installer is downloaded to a fresh, randomly named folder only the user can use, so no other
+        # process can swap the file between download and run (TOCTOU). The folder is removed afterwards.
+        # No SHA-256 check: the rokit installer publishes no hash and its URL tracks the main branch.
+        $dir = Join-Path ([IO.Path]::GetTempPath()) "nashei-install-$([guid]::NewGuid().ToString('N'))"
+        try {
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            if (-not $IsWindows) { & chmod 700 $dir }
+            $file = Join-Path $dir "$($Tool.id).sh"
+            try { Invoke-WebRequest -Uri $pkg.Substring(7) -OutFile $file -UseBasicParsing } catch { return $false }
+            Invoke-Install bash @($file)
+        } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
         return (Test-Tool $Tool)
     }
     if ($pkg -like 'snap:*') {
@@ -135,7 +150,7 @@ function Install-Tool { param($Tool)
 foreach ($tool in $tools) {
     if (-not $tool.need) { Add-Result $tool.id 'NO APLICA' "Herramienta $($tool.id)" "no la pide el perfil $Perfil"; continue }
     $have = Test-Tool $tool
-    if (-not $have -and $Action -eq 'install') { $have = Install-Tool $tool }
+    if (-not $have -and $doInstall) { $have = Install-Tool $tool }
     $hint = $tool[$os] ? "paquete $($tool[$os])" : "sin paquete para $os`: $($tool.help)"
     if (-not $have -and $script:installLog) { $hint += " ($($script:installLog))" }
     Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint)
@@ -186,11 +201,11 @@ foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
         $dir = Join-Path $Repos[0] $repo.name
-        if ($Action -eq 'install') { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
+        if ($doInstall) { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
     if (Test-Path -LiteralPath (Join-Path $dir '.githooks')) {
-        if ($Action -eq 'install') { & git -C $dir config core.hooksPath .githooks }
+        if ($doInstall) { & git -C $dir config core.hooksPath .githooks }
         if ((& git -C $dir config core.hooksPath) -ne '.githooks') { $noHooks += $repo.name }
     }
 }
@@ -203,15 +218,32 @@ if ($login) {
 $libOk = $false
 if (Test-Cmd rclone) {
     $env:RCLONE_LOG_LEVEL = 'ERROR'
-    $remotes = Invoke-Quiet rclone @('listremotes')
-    if ($remotes.out -notmatch "(?m)^$([regex]::Escape($Remote)):") {
-        Add-Result 'drive' 'PERSONA' "Remoto de rclone '$Remote'" 'ver docs/drive.md, sección "Tenerlo todo al día": se autoriza una vez en el navegador'
+    $root = $ecosystem.drive.raiz
+    $hasRemote = { (Invoke-Quiet rclone @('listremotes')).out -match "(?m)^$([regex]::Escape($Remote)):" }
+    $createCmd = "rclone config create $Remote drive scope=drive root_folder_id=$($root.id)"
+    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION
+    if (-not (& $hasRemote) -and $Action -eq 'install' -and -not $noBrowser) {
+        # Opens the browser: the person authorizes with the Google account the folder was shared with.
+        Invoke-Quiet rclone (@('config', 'create', $Remote, 'drive', 'scope=drive', "root_folder_id=$($root.id)")) | Out-Null
+    }
+    if (-not (& $hasRemote)) {
+        $detail = $noBrowser `
+            ? "este equipo no tiene navegador: en uno que sí lo tenga corre rclone authorize `"drive`", copia el token que imprime y aquí corre: $createCmd config_token=<token>" `
+            : "corre pwsh tools/puesto.ps1 install (crea el remoto y abre el navegador para autorizar con tu cuenta de Google) o a mano: $createCmd"
+        Add-Result 'drive' 'PERSONA' "Remoto de rclone '$Remote'" $detail
     } else {
         $ls = Invoke-Quiet rclone @('lsf', "${Remote}:", '--dirs-only')
         $libOk = $ls.ok -and $ls.out -match '10-kits'
-        Add-Result 'drive' ($libOk ? 'PASA' : 'FALLA') 'Drive del estudio' ($libOk ? '' : "el remoto no lista 10-kits; si venció la sesión: rclone config reconnect ${Remote}:")
+        if ($libOk) { Add-Result 'drive' 'PASA' 'Drive del estudio' }
+        elseif ($ls.ok) { Add-Result 'drive' 'PERSONA' 'Drive del estudio' "tu cuenta aún no ve la carpeta $($root.nombre): pide a Leon, dueño de la carpeta, que la comparta con tu cuenta de Google (Editor) y abre $($root.url) para confirmar que la ves; Leon solo verifica que rclone y el MCP de Drive vean la carpeta" }
+        else { Add-Result 'drive' 'FALLA' 'Drive del estudio' "rclone no pudo listar el remoto; si venció la sesión: rclone config reconnect ${Remote}:" }
     }
 } else { Add-Result 'drive' 'FALLA' 'Drive del estudio' 'falta rclone' }
+
+# Whisper model for meeting transcription: a path under the home folder, same on the three systems.
+$model = ($ecosystem.transcripcion.modelo -replace '^~', $HOME)
+if (Test-Path -LiteralPath $model) { Add-Result 'modelo-whisper' 'PASA' 'Modelo de transcripción' }
+else { Add-Result 'modelo-whisper' 'PERSONA' 'Modelo de transcripción (solo para transcribir reuniones)' "descárgalo con: curl -L --create-dirs -o `"$model`" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" }
 
 # Every Drive folder that carries a manifest is a library folder: discovered, not listed here.
 $kits = Join-Path $PSScriptRoot 'kits.ps1'

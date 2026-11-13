@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validate, loadConfig, getPath, diffDrive, diffNotion } from "./ecosistema.mjs";
+import { validate, loadConfig, getPath, diffDrive, diffDriveRoot, diffNotion } from "./ecosistema.mjs";
 import { readFileSync } from "node:fs";
 
 const schema = JSON.parse(readFileSync(new URL("../config/ecosistema.schema.json", import.meta.url), "utf8"));
@@ -46,4 +46,15 @@ test("diffNotion matches by name or alias and flags a moved id", () => {
   const f = diffNotion(config, ds);
   assert.equal(f.length, 1);
   assert.equal(f[0].kind, "changed");
+});
+
+test("diffDriveRoot flags an unreachable root, a wrong url and a root without the configured folders", () => {
+  const config = loadConfig();
+  const first = Object.values(config.drive.carpetas)[0].nombre;
+  assert.deepEqual(diffDriveRoot(config, { ok: true, names: [first] }), []);
+  assert.equal(diffDriveRoot(config, { ok: false, error: "404" })[0].kind, "missing");
+  assert.equal(diffDriveRoot(config, { ok: true, names: ["otra"] })[0].kind, "changed");
+  const bad = structuredClone(config);
+  bad.drive.raiz.url = "https://drive.google.com/drive/folders/otro-id-distinto";
+  assert.equal(diffDriveRoot(bad, { ok: true, names: [first] })[0].kind, "changed");
 });

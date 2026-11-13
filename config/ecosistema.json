@@ -43,6 +43,11 @@
   },
   "drive": {
     "remoto": "nashei",
+    "raiz": {
+      "nombre": "Nashei Studios",
+      "id": "1YCndwJ7cngvOdpDRa2KiMYBwtRAo6tVQ",
+      "url": "https://drive.google.com/drive/folders/1YCndwJ7cngvOdpDRa2KiMYBwtRAo6tVQ"
+    },
     "carpetas": {
       "empieza_aqui": { "nombre": "00-empieza-aqui", "id": "1Ayob-OQ85WqKBvpY42dU_HbWkCPlwqxU" },
       "kits": { "nombre": "10-kits", "id": "1RzYhHPdvop6avChiTblcK1l00fApmhAa" },
@@ -60,7 +65,7 @@
   "roblox": { "grupo_id": 405835365 },
   "transcripcion": {
     "motor": "whisper-cli",
-    "modelo": "D:/Victor/models/whisper/ggml-small.bin",
+    "modelo": "~/Nashei/models/whisper/ggml-small.bin",
     "idioma": "es",
     "diarizacion": "estereo",
     "memoria_libre_minima_mb": 3000
