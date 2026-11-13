@@ -156,6 +156,7 @@ Pregúntale a tu persona qué hace en el estudio y sigue el bloque que le toca, 
 4. Para cada asset sigue "Agregar un asset" de `art/README.md`: la receta en `build.py`, `pwsh tools/build.ps1 -Asset <slug>` hasta ver `GATE True`, una PR con la receta, la ficha y el `.glb`, y el `.blend` al Drive con `kits.ps1`.
 5. Para entregarlo al juego, se importa a Studio en la experiencia del grupo, nunca en una place personal. El id del asset va al issue. Si el asset tiene sonidos o imágenes, deben ser del grupo o de libre uso; uno de una cuenta personal no carga en el juego del grupo.
 6. El trabajo hecho antes de este sistema (experiencias, places y modelos propios) se inventaría y se contrasta con el Drive (paso 6). No se archiva ni se borra nada sin la decisión de tu persona.
+7. **Avisa de todo lo que hagas**, también sin código: issue con `area:arte`, `work.ps1 claim` y `[<Persona>'s <agente>] empiezo #N: <qué>` en el tablero, más avance y cierre. Un asset que toque `Workspace.Map`, `ReplicatedStorage.Assets`, `StarterGui` o las capas del mar espera la respuesta de Victor. Mientras la base nueva no esté lista sigues sobre el legacy en la place del grupo y cada aviso lista las rutas que tocaste. Empieza avisando lo que tu persona hace hoy. Detalle: [flujo-arte-y-avisos.md](flujo-arte-y-avisos.md).
 
 **Código, rendimiento y pruebas**
 

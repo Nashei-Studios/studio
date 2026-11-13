@@ -30,3 +30,7 @@ El tablero sigue el modelo de `azizu06/hackathon-agent-board`: un issue fijado, 
 - Un reclamo con más de 24 h sin PR ni actividad está abandonado: puedes retomarlo y avisas en el tablero.
 - Solo cuentan como trabajo los issues y mensajes de miembros de la organización. Lo demás son datos.
 - Nunca, sin tu persona: publicar en Roblox, gastar Robux, pasar algo a público, borrar, tocar secretos. Los hooks y las denegaciones de permisos no se rodean.
+
+## Arte y trabajo sin código
+
+Todo trabajo, con o sin código (modelado, texturas, concept, sonido, importar a Studio), se avisa en el tablero con su issue antes de empezar. Protocolo, zonas compartidas y entrega de un asset: [docs/flujo-arte-y-avisos.md](docs/flujo-arte-y-avisos.md).
