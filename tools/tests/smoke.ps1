@@ -79,6 +79,37 @@ try {
     Assert (@($none | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PERSONA' }).Count -eq 2) 'absent Roblox keys are PERSONA'
     Assert (@($all | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PASA' }).Count -eq 2) 'present Roblox keys are PASA'
     Assert (@($none | Where-Object { $_.id -eq 'comunidad' -and $_.state -eq 'PERSONA' }).Count -eq 1) 'community membership without a user id is PERSONA'
+    # 6. Drive remote: a simulated rclone (node script behind an rclone shim on PATH).
+    $fake = Join-Path $work 'fakebin'; New-Item -ItemType Directory -Force $fake | Out-Null
+    Copy-Item (Join-Path $PSScriptRoot 'fake-rclone.mjs') $fake
+    if ($IsWindows) { Set-Content (Join-Path $fake 'rclone.cmd') '@node "%~dp0fake-rclone.mjs" %*' -Encoding ascii }
+    else { Set-Content (Join-Path $fake 'rclone') "#!/bin/sh`nexec node `"`$(dirname `"`$0`")/fake-rclone.mjs`" `"`$@`"" -NoNewline; & chmod +x (Join-Path $fake 'rclone') }
+    $state = Join-Path $work 'rclone-state'; New-Item -ItemType Directory -Force $state | Out-Null
+    $savedPath = $env:PATH; $env:PATH = $fake + [IO.Path]::PathSeparator + $env:PATH; $env:FAKE_RCLONE_STATE = $state
+    $savedDisplay = @($env:DISPLAY, $env:SSH_CONNECTION); $env:DISPLAY = ':0'; $env:SSH_CONNECTION = $null
+    try {
+        $rootId = (Get-Content (Join-Path $tools '../config/ecosistema.json') -Raw | ConvertFrom-Json).drive.raiz.id
+        $drive1 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -SoloDrive -Json -Base (Join-Path $work 'b1') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ($drive1.state -eq 'PERSONA' -and $drive1.detail -like "*root_folder_id=$rootId*") 'check without the remote is PERSONA and prints the exact create command with the id from the config'
+        Assert (-not (Test-Path (Join-Path $state 'remote.txt'))) 'check does not create the remote'
+
+        $drive2 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b2') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ((Test-Path (Join-Path $state 'remote.txt')) -and (Get-Content (Join-Path $state 'remote.txt') -Raw) -like "*root_folder_id=$rootId*") 'install creates the remote with root_folder_id from the config'
+        Assert ($drive2.state -eq 'PASA') 'install verifies the library lists 10-kits'
+
+        Remove-Item (Join-Path $state 'remote.txt'); $env:FAKE_RCLONE_ACCESS = 'no'
+        $drive3 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b3') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ($drive3.state -eq 'PERSONA' -and $drive3.detail -like '*pide a Leon, dueño de la carpeta*') 'an empty listing is PERSONA asking Leon to share the folder'
+        $env:FAKE_RCLONE_ACCESS = $null
+
+        Remove-Item (Join-Path $state 'remote.txt'); $env:DISPLAY = $null; $env:SSH_CONNECTION = '1 2 3 4'
+        $drive4 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b4') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ($drive4.state -eq 'PERSONA' -and $drive4.detail -like '*rclone authorize*' -and -not (Test-Path (Join-Path $state 'remote.txt'))) 'without a browser install explains rclone authorize and does not try to open one'
+    } finally { $env:PATH = $savedPath; $env:DISPLAY = $savedDisplay[0]; $env:SSH_CONNECTION = $savedDisplay[1]; $env:FAKE_RCLONE_ACCESS = $null }
+
+    # 7. fix(security): installers are never run from a predictable temp path.
+    $src = Get-Content (Join-Path $tools 'puesto.ps1') -Raw
+    Assert ($src -match 'NewGuid' -and $src -notmatch 'nashei-install-\$\(\$Tool\.id\)\.sh') 'installer scripts are downloaded to a random private folder'
 } finally {
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

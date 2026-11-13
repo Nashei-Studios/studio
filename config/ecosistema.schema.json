@@ -54,9 +54,18 @@
     },
     "drive": {
       "type": "object",
-      "required": ["remoto", "carpetas"],
+      "required": ["remoto", "raiz", "carpetas"],
       "properties": {
         "remoto": { "type": "string", "minLength": 1 },
+        "raiz": {
+          "type": "object",
+          "required": ["nombre", "id", "url"],
+          "properties": {
+            "nombre": { "type": "string", "minLength": 1 },
+            "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{10,}$" },
+            "url": { "type": "string", "pattern": "^https://drive[.]google[.]com/drive/folders/[A-Za-z0-9_-]{10,}$" }
+          }
+        },
         "carpetas": {
           "type": "object",
           "required": ["reuniones", "beta_testing"],

@@ -71,6 +71,16 @@ export function diffDrive(config, listing) {
   return findings;
 }
 
+/** Checks drive.raiz: its url must end in its id, and listing it must work and show the configured folders. */
+export function diffDriveRoot(config, run) {
+  const { raiz } = config.drive;
+  const findings = [];
+  if (!raiz.url.endsWith(`/${raiz.id}`)) findings.push({ key: "drive.raiz", kind: "changed", detail: "la url no termina en el id" });
+  if (!run.ok) findings.push({ key: "drive.raiz", kind: "missing", detail: `rclone no puede listar la carpeta ${raiz.id}: ${run.error}` });
+  else if (!run.names.includes(Object.values(config.drive.carpetas)[0].nombre)) findings.push({ key: "drive.raiz", kind: "changed", detail: "esa carpeta no contiene las subcarpetas configuradas" });
+  return findings;
+}
+
 /** Compares configured Notion bases with search results of the 2025-09-03 API (data_source objects). */
 export function diffNotion(config, dataSources) {
   const titleOf = (o) => (o.title ?? []).map((t) => t.plain_text).join("");
@@ -99,7 +109,10 @@ function setPath(obj, dotted, value) {
 function discoverDrive(config) {
   const run = spawnSync("rclone", ["lsjson", `${config.drive.remoto}:`, "--dirs-only"], { encoding: "utf8", windowsHide: true });
   if (run.error || run.status !== 0) return { skipped: "rclone no responde (revisa `rclone lsf " + config.drive.remoto + ":`)" };
-  return { findings: diffDrive(config, JSON.parse(run.stdout)) };
+  // The root is listed by its configured id, whatever root_folder_id the person's remote has.
+  const root = spawnSync("rclone", ["lsjson", `${config.drive.remoto},root_folder_id=${config.drive.raiz.id}:`, "--dirs-only"], { encoding: "utf8", windowsHide: true });
+  const rootRun = root.status === 0 ? { ok: true, names: JSON.parse(root.stdout).map((d) => d.Name) } : { ok: false, error: (root.stderr || "").trim().split(/\r?\n/).pop() };
+  return { findings: [...diffDriveRoot(config, rootRun), ...diffDrive(config, JSON.parse(run.stdout))] };
 }
 
 async function discoverNotion(config) {

@@ -26,7 +26,7 @@ Se declaran en `config/ecosistema.json`, sección `reuniones.tipos`. Agregar un 
 
 - Un celular con la app de notas de voz, sobre la mesa, con batería y espacio. Respaldo: un segundo celular o la grabadora del PC.
 - Acceso a la carpeta `15-reuniones` de Drive (remoto `nashei` si se sube con `rclone`; si no, desde el navegador).
-- Un computador con `rclone`, `ffmpeg`, `whisper-cli` y el modelo (`config/ecosistema.json`, sección `transcripcion`), Node 20 o más, `gh` autenticado.
+- Un computador con `rclone`, `ffmpeg`, `whisper-cli` y el modelo (`config/ecosistema.json`, sección `transcripcion`; ruta bajo tu carpeta de usuario, descarga en [drive.md](drive.md)), Node 20 o más, `gh` autenticado.
 - El agente (Claude Code con la skill `reunion` de `claude-toolkit`).
 
 ## Roles

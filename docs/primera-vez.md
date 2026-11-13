@@ -62,7 +62,12 @@ pwsh ~/Nashei/repos/studio/tools/puesto.ps1 install
 
 ### 4. Drive (necesita a tu persona una vez)
 
-Si `puesto.ps1` marca PERSONA en el remoto de rclone, sigue "Tenerlo todo al día" de [drive.md](drive.md): se crea el remoto `nashei` y tu persona autoriza en el navegador con la cuenta de Google que tiene acceso a la carpeta del estudio. Después corre otra vez `puesto.ps1 install`: baja la biblioteca completa a `~/Nashei/biblioteca`.
+La carpeta es [Nashei Studios](https://drive.google.com/drive/folders/1YCndwJ7cngvOdpDRa2KiMYBwtRAo6tVQ) (id en `config/ecosistema.json`, `drive.raiz`). La dueña es Leon, que la comparte con cada persona.
+
+- **Tu agente**: corre `puesto.ps1 install`. Si falta el remoto `nashei` lo crea solo (`rclone config create` con el id de la configuración) y verifica con `rclone lsf nashei: --dirs-only` que liste `10-kits`. Después baja la biblioteca a `~/Nashei/biblioteca`.
+- **Tu persona**: autoriza en el navegador que se abre, con la cuenta de Google a la que se le compartió la carpeta. Nada más.
+- **Sin navegador** (SSH, Linux sin pantalla): explícale `rclone authorize "drive"` como dice [drive.md](drive.md).
+- **Acceso denegado o lista vacía**: `puesto.ps1` marca PERSONA. Que tu persona pida a Leon, dueño de la carpeta, que la comparta con su cuenta de Google (Editor); luego repite `puesto.ps1 install`. Si tu persona es Leon, solo verifica que rclone y el MCP de Drive vean la carpeta.
 
 ### 4b. Llaves de Roblox (una por persona) y la comunidad
 
@@ -120,7 +125,8 @@ Con `~/Nashei/inventario/<fecha>/resumen.md` en mano:
 2. Propón paquetes: una carpeta por tema, nombre en minúsculas y con guiones (`casas-low-poly`, `personajes-rig`). Di el tamaño de cada uno y pregunta la licencia u origen de lo que no hizo tu persona.
 3. **Solo con su aprobación**, copia cada paquete aprobado a `~/Nashei/biblioteca/50-arte/<nombre>` y sube:
    `pwsh ~/Nashei/repos/studio/tools/kits.ps1 push -Path ~/Nashei/biblioteca/50-arte -Folder 50-arte`
-4. Lo que sirve como kit reutilizable (no un trabajo en curso) va a `10-kits` con su nota en `roblox-vault/kits/<nombre>.md`.
+4. Dónde va cada cosa: arte a `50-arte`, beta testing a `35-beta-testing`, reuniones a `15-reuniones`, legacy a `60-legacy` (`kits.ps1 push -Path <copia> -Folder <carpeta>`; detalle en [drive.md](drive.md)).
+5. Lo que sirve como kit reutilizable (no un trabajo en curso) va a `10-kits` con su nota en `roblox-vault/kits/<nombre>.md`.
 
 Límite que hay que decirle: lo que sube cuenta contra su cuota de Google (15 GB en una cuenta gratis). Si un paquete no cabe, se avisa en la discusión antes de subir.
 
