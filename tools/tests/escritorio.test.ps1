@@ -7,7 +7,7 @@ $failed = 0
 function Assert { param([bool]$Condition, [string]$What) if ($Condition) { "ok    $What" } else { "FAIL  $What"; $script:failed++ } }
 $eco = Get-Content -LiteralPath (Join-Path $tools '../config/ecosistema.json') -Raw | ConvertFrom-Json
 
-$list = "notion-studio: https://mcp.notion.com/mcp (HTTP) - Connected`nescritorio: uvx windows-mcp serve - Connected"
+$list = "notion-studio: https://mcp.example.com/mcp (HTTP) - Connected`nescritorio: uvx windows-mcp serve - Connected"
 Assert ((Get-EscritorioState $list 'escritorio') -eq 'conectado') 'registered and connected is conectado (PASA)'
 Assert ((Get-EscritorioState 'notion-studio: x - Connected' 'escritorio') -eq 'ausente') 'not registered is ausente (PERSONA)'
 Assert ((Get-EscritorioState 'escritorio: uvx x - Failed to connect' 'escritorio') -eq 'registrado-sin-conexion') 'registered but failing is registrado-sin-conexion (PERSONA)'
