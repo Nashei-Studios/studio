@@ -21,7 +21,7 @@ flowchart TD
   B -->|si| D[work.ps1 claim N]
   C --> D
   D -->|exit 3| X[Otro lo tiene: soltar y avisar]
-  D -->|exit 2| Y[WIP lleno o no tomable: decir por que]
+  D -->|exit 2| Y[no tomable o tope wip propio lleno: decir por que]
   D -->|exit 0| E[Aviso: empiezo #N]
   E --> F[Trabajar]
   F --> G[Aviso de avance relevante]
@@ -34,7 +34,7 @@ Pasos, en este orden. Aplican igual a modelado en Blender, texturas, concept, so
 
 1. **Buscar el issue.** `pwsh tools/work.ps1 list` y `mine`; si no está ahí, `gh issue list -R <repo> --label area:arte --search "<tema>"`. Antes de crear otro, revisa que nadie tenga el mismo.
 2. **Si no hay, crearlo antes de empezar.** En el repo del juego con la plantilla de historia o `art-request.yml` ("Pedido de modelo o arte"). Etiquetas: `area:arte`, `owner:leon` y el `tipo:` que corresponda. Después súbelo al Project del juego (Drain for Loot es el Project 2 de la organización): `gh project item-add 2 --owner Nashei-Studios --url <url del issue>`, con `Carril`, `Prioridad` y `Tamaño` llenos. Si algún campo no lo sabes, pregunta a la persona; no lo inventes.
-3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es WIP lleno o issue no tomable. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
+3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es issue no tomable o tope `wip` propio lleno. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
 4. **Avisar en el tablero:**
 
    ```

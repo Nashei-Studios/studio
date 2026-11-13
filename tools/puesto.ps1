@@ -20,7 +20,7 @@
     "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it;
                                  estricto = like preguntar. With autonomo and estricto an MCP edit to a group place is
                                  blocked without a started issue; with preguntar the person is asked
-    "wip":   1                   issues in progress at once (default 1)
+    "wip":   2                   optional personal cap on issues in progress; unset = no cap
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
 

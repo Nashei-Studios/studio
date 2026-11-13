@@ -176,12 +176,12 @@ Lee `docs/game/beta-testing.md` del repo del juego. Las sesiones de tu persona s
 Tu agente mira el tablero y los issues, toma trabajo de tu área y te reporta. Se configura una vez en `~/Nashei/puesto.json`, junto a las rutas:
 
 ```json
-{ "areas": ["area:arte"], "modo": "preguntar", "wip": 1 }
+{ "areas": ["area:arte"], "modo": "preguntar" }
 ```
 
 - `areas`: etiquetas `area:código`, `area:ui`, `area:arte`, `area:economía`, `area:audio`, `area:crecimiento`, `area:infra`.
 - `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto), `autonomo` (lo toma solo) o `estricto` (como `preguntar` para tomar trabajo). Con `autonomo` y `estricto` el agente no puede editar por MCP la place del grupo sin un issue empezado; con `preguntar` te pide confirmación.
-- `wip`: cuántos issues a la vez; por defecto 1.
+- `wip` (opcional): tope personal de issues a la vez; sin él no hay tope.
 
 `pwsh tools/puesto.ps1 check` marca PERSONA si falta algo. El protocolo completo está en `AGENTS.md` y la decisión en `docs/adr/0003-agentes-que-toman-trabajo-solos.md`.
 
