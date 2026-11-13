@@ -10,10 +10,14 @@ function Get-ClaudeSettingsPath {
     $dir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
     Join-Path $dir 'settings.json' }
 
-function Get-NasheiHookSpec { param([string]$HookScript)
+function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'preguntar')
     <# Event -> one matcher group. Exec form (command + args): no shell, so the same entry works in cmd,
        PowerShell, Git Bash, zsh and bash, and a path with spaces needs no quoting. #>
     $script = ($HookScript -replace '\\', '/')
+    $studioTools = 'mcp__[Rr]oblox[_-]?[Ss]tudio__.*'
+    # onFailure (Claude Code 2.1.295+): in a blocking modo the lock fails closed; with preguntar a broken pwsh
+    # must not stop the person's own Studio work.
+    $lockExtra = ($Modo -in 'estricto', 'autonomo') ? @{ onFailure = 'block' } : @{}
     $entry = { param([string]$Mode, [int]$Timeout, [hashtable]$Extra = @{})
         $h = [ordered]@{ type = 'command'; command = 'pwsh'; args = @('-NoProfile', '-File', $script, $Mode, '-Usuario'); timeout = $Timeout }
         foreach ($k in $Extra.Keys) { $h[$k] = $Extra[$k] }
@@ -21,9 +25,8 @@ function Get-NasheiHookSpec { param([string]$HookScript)
     [ordered]@{
         SessionStart     = [ordered]@{ matcher = 'startup|resume|clear'; hooks = @(& $entry 'session-start' 20) }
         UserPromptSubmit = [ordered]@{ hooks = @(& $entry 'prompt' 10) }
-        # The lock must not fail open: if pwsh cannot even start, the Studio edit is blocked.
-        PreToolUse       = [ordered]@{ matcher = 'mcp__.*[Rr]oblox.*'; hooks = @(& $entry 'candado' 10 @{ onFailure = 'block' }) }
-        PostToolUse      = [ordered]@{ matcher = 'mcp__.*[Rr]oblox.*|mcp__.*[Gg]oogle.?[Dd]rive.*|^Bash$|^PowerShell$'; hooks = @(& $entry 'registro' 10) }
+        PreToolUse       = [ordered]@{ matcher = $studioTools; hooks = @(& $entry 'candado' 10 $lockExtra) }
+        PostToolUse      = [ordered]@{ matcher = "$studioTools|mcp__.*[Gg]oogle.?[Dd]rive.*|^Bash$|^PowerShell$"; hooks = @(& $entry 'registro' 10) }
         Stop             = [ordered]@{ hooks = @(& $entry 'cierre' 15) }
     } }
 
@@ -32,7 +35,8 @@ function Test-IsNasheiHook { param($Hook)
     ($text -replace '\\', '/') -match [regex]::Escape($script:HookMarker) }
 
 function Merge-UserHooks { param($Settings, $Spec)
-    <# Returns the settings with every board-hook.ps1 entry replaced by $Spec. Other hooks keep their order. #>
+    <# Returns the settings with every board-hook.ps1 entry replaced by $Spec (removed when $Spec is empty).
+       Other hooks keep their order. #>
     $out = [ordered]@{}
     if ($Settings) { foreach ($k in $Settings.Keys) { $out[$k] = $Settings[$k] } }
     $hooks = [ordered]@{}
@@ -54,20 +58,24 @@ function Merge-UserHooks { param($Settings, $Spec)
         $list += , $Spec[$event]   # the comma keeps the group as one element
         $hooks[$event] = $list
     }
-    $out.hooks = $hooks
+    if ($hooks.Count) { $out.hooks = $hooks } else { $out.Remove('hooks') }
     $out }
 
-function Test-UserHooks { param($Settings, [string]$HookScript)
-    <# Events whose board-hook.ps1 entry is missing or points somewhere else. Empty = all present. #>
+function Remove-UserHooks { param($Settings) Merge-UserHooks $Settings ([ordered]@{}) }
+
+function Test-UserHooks { param($Settings, [string]$HookScript, [string]$Modo = 'preguntar')
+    <# Events whose board-hook.ps1 entry is missing, points somewhere else or does not match the modo (the lock
+       must fail closed in a blocking modo). Empty = all present. #>
     $want = ($HookScript -replace '\\', '/')
-    $spec = Get-NasheiHookSpec $HookScript
+    $spec = Get-NasheiHookSpec $HookScript $Modo
     $missing = @()
     foreach ($event in $spec.Keys) {
         $mode = $spec[$event].hooks[0].args[3]
         $found = @($Settings.hooks.$event | ForEach-Object { @($_.hooks) } | Where-Object {
                 $args2 = @($_.args | ForEach-Object { "$_" -replace '\\', '/' })
                 (Test-IsNasheiHook $_) -and ($args2 -contains $mode) -and
-                ($IsWindows ? ($args2 -icontains $want) : ($args2 -ccontains $want)) })
+                ($IsWindows ? ($args2 -icontains $want) : ($args2 -ccontains $want)) -and
+                ("$($_.onFailure)" -eq "$($spec[$event].hooks[0].onFailure)") })
         if (-not $found.Count) { $missing += $event }
     }
     if (-not (Test-Path -LiteralPath $HookScript)) { $missing += 'script' }
@@ -79,14 +87,25 @@ function Read-ClaudeSettings { param([string]$Path)
     if (-not $raw.Trim()) { return [ordered]@{} }
     $raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop }
 
-function Install-UserHooks { param([string]$HookScript, [string]$Path = (Get-ClaudeSettingsPath))
+function Save-ClaudeSettings { param([string]$Path, $Settings)
+    New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
+    # The first backup is the file as it was before the studio ever touched it: later runs keep it.
+    if ((Test-Path -LiteralPath $Path) -and -not (Test-Path -LiteralPath "$Path.bak-nashei")) { Copy-Item -LiteralPath $Path -Destination "$Path.bak-nashei" }
+    $tmp = "$Path.tmp-$PID"
+    $Settings | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $tmp -Encoding utf8
+    Move-Item -LiteralPath $tmp -Destination $Path -Force }
+
+function Install-UserHooks { param([string]$HookScript, [string]$Path = (Get-ClaudeSettingsPath), [string]$Modo = 'preguntar')
     <# Writes the hooks. Returns '' on success or the reason it did not touch the file. #>
     try { $settings = Read-ClaudeSettings $Path }
     catch { return "$Path no es JSON válido: no se tocó; corrígelo y vuelve a correr install" }
-    $merged = Merge-UserHooks $settings (Get-NasheiHookSpec $HookScript)
-    New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
-    if (Test-Path -LiteralPath $Path) { Copy-Item -LiteralPath $Path -Destination "$Path.bak-nashei" -Force }
-    $tmp = "$Path.tmp-$PID"
-    $merged | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $tmp -Encoding utf8
-    Move-Item -LiteralPath $tmp -Destination $Path -Force
+    Save-ClaudeSettings $Path (Merge-UserHooks $settings (Get-NasheiHookSpec $HookScript $Modo))
+    '' }
+
+function Uninstall-UserHooks { param([string]$Path = (Get-ClaudeSettingsPath))
+    <# Removes only the studio's entries. Returns '' on success or the reason it did not touch the file. #>
+    if (-not (Test-Path -LiteralPath $Path)) { return '' }
+    try { $settings = Read-ClaudeSettings $Path }
+    catch { return "$Path no es JSON válido: no se tocó" }
+    Save-ClaudeSettings $Path (Remove-UserHooks $settings)
     '' }
