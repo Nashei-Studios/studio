@@ -34,7 +34,7 @@ flowchart TD
 | `roblox-vault` | Referentes medidos, decisiones, qué se aprendió de cada juego | Se lee antes de decidir; lo actualiza el sistema de investigación |
 | `roblox-game-template` | De aquí nace cada juego. Trae guardado, tienda, UI, pruebas y el flujo de equipo | Victor y sus agentes; todos proponen |
 | Studio con Team Create | Arte y mapa, en vivo entre los tres | Nande y Leon, con Victor |
-| Rojo | Lleva el código de Git a Studio | Una persona a la vez |
+| Rojo | Lleva el código de Git a Studio. Qué se ve en vivo y qué va por ramas: [en-vivo-y-ramas.md](en-vivo-y-ramas.md) | Una persona a la vez: Victor en la place del grupo |
 | CI | Revisa formato, tipos y pruebas en cada PR; al verde, mergea | Automático |
 | Notion | La misma información, para leer | Automático (espejo) |
 | Drive | Kits, video, audio | Quien sube deja la nota en el vault |
