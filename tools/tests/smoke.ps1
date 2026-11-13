@@ -16,6 +16,9 @@ function New-Blob { param([string]$File, [int]$Seed)
     New-Item -ItemType Directory -Force (Split-Path $File) | Out-Null
     $bytes = [byte[]]::new(4096); [Random]::new($Seed).NextBytes($bytes); [IO.File]::WriteAllBytes($File, $bytes) }
 
+# Child pwsh processes write UTF-8; decode them as UTF-8 even when the console code page is OEM (850 on es-CL Windows).
+$savedConsoleEncoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The three scripts parse.
     foreach ($name in 'puesto', 'kits', 'inventario') {
@@ -26,6 +29,8 @@ try {
 
     # 2. A Drive that is a local folder: rclone reads the remote from the environment.
     $drive = Join-Path $work 'drive'; New-Item -ItemType Directory -Force $drive | Out-Null
+    # The real rclone config (and its 'nashei' remote) must never be reachable from this test: point rclone at a file that does not exist.
+    $env:RCLONE_CONFIG = Join-Path $work 'no-rclone.conf'
     $env:RCLONE_CONFIG_SMOKE_TYPE = 'alias'
     $env:RCLONE_CONFIG_SMOKE_REMOTE = $drive
     $stage = Join-Path $work 'stage'
@@ -116,6 +121,8 @@ try {
     $src = Get-Content (Join-Path $tools 'puesto.ps1') -Raw
     Assert ($src -match 'NewGuid' -and $src -notmatch 'nashei-install-\$\(\$Tool\.id\)\.sh') 'installer scripts are downloaded to a random private folder'
 } finally {
+    $env:RCLONE_CONFIG = $null
+    [Console]::OutputEncoding = $savedConsoleEncoding
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }
 if ($failed) { "$failed expectation(s) failed"; exit 1 }
