@@ -32,6 +32,8 @@ param(
     [string]$Biblioteca = '',
     [string]$Org = 'Nashei-Studios',
     [string]$Remote = 'nashei',
+    # Test hook: comma-separated names to treat as present ('ninguna' = none) instead of the real environment.
+    [string]$LlavesSimuladas = $null,
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
@@ -238,6 +240,31 @@ if (Test-Cmd claude) {
         Add-Result "mcp-$server" $state "Agente conectado a $server" ($state -eq 'PASA' ? '' : 'ver docs/primera-vez.md, tabla de conexiones')
     }
 } else { Add-Result 'mcp' 'NO APLICA' 'Conexiones MCP' 'no hay Claude Code en este equipo; tu agente usa su propio modo de conectarse' }
+
+# ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
+$communityId = 405835365
+$communityUrl = "https://www.roblox.com/communities/$communityId"
+$keysFile = Join-Path $HOME '.config/nashei/claves.env'
+function Test-KeyPresent { param([string]$Name)
+    if ($PSBoundParameters.ContainsKey('Name') -and $null -ne $script:LlavesSimuladas) { return ($Name -in ($script:LlavesSimuladas -split ',')) }
+    if ($IsWindows) { return -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name, 'User')) }
+    if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name))) { return $true }
+    # Only the line shape NAME=<something> is tested; the matched text is discarded.
+    return (Test-Path -LiteralPath $keysFile) -and [bool](Select-String -LiteralPath $keysFile -Pattern "^(export\s+)?$Name=.+" -Quiet) }
+foreach ($key in 'ROBLOX_API_KEY', 'ROBLOX_MONETIZATION_API_KEY') {
+    $present = Test-KeyPresent $key
+    Add-Result "llave-$key" ($present ? 'PASA' : 'PERSONA') "Llave de Roblox $key" ($present ? '' : "crea tu llave de usuario en create.roblox.com/credentials con acceso a la experiencia del grupo $communityId y guárdala con los comandos de docs/primera-vez.md") }
+
+$robloxUserId = $config.robloxUserId
+$inCommunity = $null
+if ($robloxUserId -and $null -eq $LlavesSimuladas) {
+    try {
+        $roles = Invoke-RestMethod -Uri "https://groups.roblox.com/v2/users/$robloxUserId/groups/roles" -TimeoutSec 15
+        $inCommunity = [bool](@($roles.data | Where-Object { $_.group.id -eq $communityId }).Count)
+    } catch { $inCommunity = $null }
+}
+if ($inCommunity) { Add-Result 'comunidad' 'PASA' "Miembro de la comunidad de Roblox $communityId" }
+else { Add-Result 'comunidad' 'PERSONA' "Miembro de la comunidad de Roblox $communityId" "unirse en $communityUrl y pedir el rol a un admin (para que el chequeo automático funcione, escribe robloxUserId en puesto.json)" }
 
 # ---- Report ----
 if ($Json) { [pscustomobject]@{ os = $os; perfil = $Perfil; base = $Base; login = $login; results = $results } | ConvertTo-Json -Depth 4 }

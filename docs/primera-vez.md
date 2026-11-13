@@ -64,6 +64,34 @@ pwsh ~/Nashei/repos/studio/tools/puesto.ps1 install
 
 Si `puesto.ps1` marca PERSONA en el remoto de rclone, sigue "Tenerlo todo al día" de [drive.md](drive.md): se crea el remoto `nashei` y tu persona autoriza en el navegador con la cuenta de Google que tiene acceso a la carpeta del estudio. Después corre otra vez `puesto.ps1 install`: baja la biblioteca completa a `~/Nashei/biblioteca`.
 
+### 4b. Llaves de Roblox (una por persona) y la comunidad
+
+Cada persona crea **sus propias llaves de usuario**; no se comparte una llave del grupo. Creator Hub desaconseja las llaves de grupo y una llave compartida no deja saber quién hizo qué. Se necesitan dos nombres de variable: `ROBLOX_API_KEY` y `ROBLOX_MONETIZATION_API_KEY`.
+
+1. Tu persona entra a https://create.roblox.com/credentials y crea la llave con su cuenta.
+2. En "Access Permissions" agrega la experiencia del juego (la que pertenece a la comunidad 405835365) y solo los scopes que el juego necesita: `ROBLOX_API_KEY` con los de publicar y subir assets, `ROBLOX_MONETIZATION_API_KEY` con los de game passes y productos. Sin acceso a más experiencias que esa.
+3. La llave se guarda **escribiéndola tu persona**. El agente nunca la ve, no la pega ni la lee: solo comprueba que exista.
+
+Windows (PowerShell 7), una vez por llave; el valor se escribe enmascarado:
+
+```
+[Environment]::SetEnvironmentVariable('ROBLOX_API_KEY', (Read-Host -MaskInput 'Llave'), 'User')
+[Environment]::SetEnvironmentVariable('ROBLOX_MONETIZATION_API_KEY', (Read-Host -MaskInput 'Llave'), 'User')
+```
+
+macOS y Linux, una vez; `read -s` no muestra lo que escribes:
+
+```
+mkdir -p ~/.config/nashei && touch ~/.config/nashei/claves.env && chmod 600 ~/.config/nashei/claves.env
+read -s -p 'Llave: ' K && echo "export ROBLOX_API_KEY=$K" >> ~/.config/nashei/claves.env; unset K
+read -s -p 'Llave: ' K && echo "export ROBLOX_MONETIZATION_API_KEY=$K" >> ~/.config/nashei/claves.env; unset K
+echo '[ -f ~/.config/nashei/claves.env ] && source ~/.config/nashei/claves.env' >> ~/.zshenv   # en bash: ~/.bashrc
+```
+
+Abre una terminal nueva y corre `puesto.ps1 check`: las dos líneas deben decir PASA (solo comprueba presencia).
+
+**Unirse a la comunidad.** Tu persona entra a https://www.roblox.com/communities/405835365 y pulsa Unirse; un admin le da su rol. Hasta entonces `puesto.ps1` marca PERSONA. Para que lo verifique solo, escribe `"robloxUserId": <número>` en `puesto.json`.
+
 ### 5. Conexiones del agente
 
 Cada una se comprueba con `claude mcp list` (o el equivalente de tu agente). Instala las que falten y dile a tu persona cuándo tiene que autorizar algo.
