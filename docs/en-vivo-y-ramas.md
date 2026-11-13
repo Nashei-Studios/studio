@@ -1,6 +1,6 @@
 # Qué se ve en vivo y qué va por ramas
 
-**En una frase:** lo que se construye en Studio (mapa, modelos, UI hecha a mano, luces) lo vemos todos al mismo tiempo. El código no: vive en GitHub, cada uno lo escribe en su rama y entra a Studio con Rojo, desde una sola computadora.
+**En una frase:** lo que se construye en Studio (mapa, modelos, UI hecha a mano, luces) lo vemos todos al mismo tiempo. El código no: vive en GitHub, cada uno lo escribe en su rama y entra a Studio con Rojo, desde una sola computadora (la que mantiene la place compartida).
 
 ```mermaid
 flowchart LR
@@ -14,7 +14,7 @@ flowchart LR
     R2[Rama de otro] -->|PR al verde| D
   end
   D -->|Rojo, una sola computadora| Vivo
-  R1 -.->|rojo serve propio| B1[Baseplate de prueba]
+  R1 -.->|rojo serve propio| B1[Tu copia local: places/dev.rbxl]
 ```
 
 ## Lo que vemos al mismo tiempo
@@ -34,8 +34,8 @@ Team Create guarda la place solo cada pocos minutos. Los jugadores no ven nada h
 ## Lo que no se ve en vivo: el código
 
 - Cada uno programa en **su rama** (`feat/<tarea>`), en su computadora. El otro no ve nada hasta que la PR pasa el CI y entra a `develop`. Las PR son chicas y se mergean el mismo día, así nadie se queda atrás.
-- **Una sola computadora conecta Rojo a la place del grupo: la de Victor.** Con dos Rojo conectados a la misma place, uno pisa al otro. Mientras el juego es privado, lo que se lleva es `develop`. Cuando sea público, la versión publicada sale de `main` por release.
-- Para probar tu rama: un Baseplate propio con tu `rojo serve`. Nunca la place del grupo.
+- **Una sola computadora conecta Rojo a la place del grupo: la del juego, con `tools/place-sync.ps1` del repo del juego, siempre sobre `develop`.** Con dos Rojo conectados a la misma place, uno pisa al otro. Mientras el juego es privado, lo que se lleva es `develop`. Cuando sea público, la versión publicada sale de `main` por release.
+- Para probar tu rama: tu copia local de la place (`places/dev.rbxl`) con tu propio `rojo serve`. Nunca la place del grupo.
 - Cada uno programa en su rama; el trabajo del otro se revisa en su PR.
 
 ## Para Leon, en concreto

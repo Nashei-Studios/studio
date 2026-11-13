@@ -36,7 +36,7 @@ Windows. Los comandos van en PowerShell.
 | 8 | Claude Code (si usas IA para programar) | claude.com/claude-code | `claude` abre en la carpeta del juego |
 | 9 | Pasar la puerta local antes de escribir código | `stylua --check .`, `selene .`, `lune run scripts/test` | Las tres terminan sin error |
 
-Regla de Rojo: **solo una persona a la vez** lo conecta al place compartido. Si dos lo conectan, se pisan los scripts. Quien lo tiene lo dice en el Agent Board.
+Regla de Rojo: al place compartido lo conecta **una sola computadora** (la del juego). Tu Rojo es solo para tu copia local. Si dos lo conectan a la misma place, se pisan los scripts. Ver [como-trabajamos.md](como-trabajamos.md).
 
 ## Para que la IA controle más cosas (quien orquesta agentes)
 
