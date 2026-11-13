@@ -70,9 +70,10 @@ function Get-Login {
 
 function Get-IssueInfo { param([string]$R, [int]$N)
     if ($testing -and $env:NASHEI_ISSUE_SIMULADO) { return $env:NASHEI_ISSUE_SIMULADO | ConvertFrom-Json }
-    $r = Invoke-GhTimed @('issue', 'view', "$N", '-R', $R, '--json', 'state,title,assignees')
-    if ($r.code -ne 0) { throw "aviso: no pude leer $R#$N ($($r.out))" }
-    $r.out | ConvertFrom-Json }
+    # Not $r: PowerShell names ignore case, so it would overwrite the [string] parameter $R.
+    $res = Invoke-GhTimed @('issue', 'view', "$N", '-R', $R, '--json', 'state,title,assignees')
+    if ($res.code -ne 0) { throw "aviso: no pude leer $R#$N ($($res.out))" }
+    $res.out | ConvertFrom-Json }
 
 function Test-Taken { param($Info, [string]$Login)
     "$($Info.state)" -eq 'OPEN' -and (@($Info.assignees | ForEach-Object { "$($_.login)".ToLowerInvariant() }) -contains $Login.ToLowerInvariant()) }

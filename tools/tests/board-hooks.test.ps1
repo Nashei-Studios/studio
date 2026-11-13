@@ -108,7 +108,7 @@ Assert ((Test-UserHooks $merged $hook 'estricto') -contains 'PreToolUse') 'check
 
 $work = Join-Path ([IO.Path]::GetTempPath()) "nashei-hooks-$PID"
 $saved = @{ NASHEI_BASE = $env:NASHEI_BASE; CLAUDE_CONFIG_DIR = $env:CLAUDE_CONFIG_DIR; BOARD_LOGIN = $env:BOARD_LOGIN; CLAUDE_PROJECT_DIR = $env:CLAUDE_PROJECT_DIR
-    NASHEI_TABLERO_SIMULADO = $env:NASHEI_TABLERO_SIMULADO; NASHEI_ISSUE_SIMULADO = $env:NASHEI_ISSUE_SIMULADO; NASHEI_TEST = $env:NASHEI_TEST }
+    NASHEI_TABLERO_SIMULADO = $env:NASHEI_TABLERO_SIMULADO; NASHEI_ISSUE_SIMULADO = $env:NASHEI_ISSUE_SIMULADO; NASHEI_TEST = $env:NASHEI_TEST; PATH = $env:PATH }
 $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); $OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
@@ -222,6 +222,18 @@ try {
         Assert (-not $last.Contains($HOME) -and $last -notmatch 'gho_') 'the posted notice has no personal path and no token'
         Assert ($null -eq (Get-ActiveIssue $state)) 'cierro closes the lock again'
         Assert ((Invoke-Hook 'candado' $editB) -match '"permissionDecision":"deny"') 'after cierro an edit needs a new issue'
+
+        # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
+        $fakeBin = Join-Path $work 'bin'; New-Item -ItemType Directory -Force $fakeBin | Out-Null
+        $issueJson = '{"assignees":[{"login":"leonaranguiz2012-a11y"}],"state":"OPEN","title":"bahia"}'
+        Set-Content (Join-Path $fakeBin 'gh.cmd') "@echo $issueJson" -Encoding ascii
+        Set-Content (Join-Path $fakeBin 'gh') "#!/bin/sh`nprintf '%s\n' '$issueJson'" -Encoding ascii
+        if (-not $IsWindows) { & chmod +x (Join-Path $fakeBin 'gh') }
+        $env:PATH = "$fakeBin$([IO.Path]::PathSeparator)$env:PATH"
+        $env:NASHEI_ISSUE_SIMULADO = $null
+        & pwsh -NoProfile -File $aviso empiezo -Issue 13 -Repo "$org/drain-for-loot" -Que 'bahía' -Sesion C 2>$null | Out-Null
+        Assert ($LASTEXITCODE -eq 0 -and (Get-ActiveIssue $state 'C').number -eq 13) 'empiezo reads the issue through gh and opens the lock'
+        Clear-ActiveIssue $state
     }
 } finally {
     foreach ($k in $saved.Keys) { if ($null -eq $saved[$k]) { Remove-Item "env:$k" -ErrorAction SilentlyContinue } else { Set-Item "env:$k" $saved[$k] } }
