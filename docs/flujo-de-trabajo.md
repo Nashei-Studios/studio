@@ -64,6 +64,18 @@ Sub-issues del spec, plantilla **Historia de usuario**: "Como jugador que..., qu
 
 Cada historia se parte en tareas si pasa de tamaño M. Toda tarea tiene dueño, área, prioridad y criterio de listo. Estados: viven en el Project, no en etiquetas.
 
+Nadie mueve tarjetas a mano:
+
+| Estado | Lo pone |
+|---|---|
+| Backlog | El flujo nativo del Project al agregar el ítem |
+| Listo | Quien planifica (el issue tiene dueño o `ready-for-agent`); `work.ps1 release` lo devuelve aquí |
+| En curso | `work.ps1 claim` del agente que lo toma |
+| En revisión | El flujo nativo del Project al enlazarse la PR |
+| Hecho | El flujo nativo del Project al mergear la PR o cerrar el issue |
+
+Los nombres de campo y de estado salen de `github.project_estados` en `config/ecosistema.json`. Un issue sin dueño ni `ready-for-agent` no aparece en la cola de ningún agente.
+
 ## 6. Rama, PR y CI
 
 Una rama por issue, PR a `develop` con `Closes #N`. El CI revisa formato, tipos, pruebas y cobertura. Al verde, el automerge la une, cierra el issue y borra la rama. Los commits siguen Conventional Commits, porque de ahí sale el changelog.
