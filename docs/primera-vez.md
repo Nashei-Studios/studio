@@ -1,5 +1,7 @@
 # Primera vez: tu agente deja tu computador listo
 
+Lee también [como-trabajamos.md](como-trabajamos.md): cómo se trabaja en el día a día.
+
 Para Windows, macOS y Linux. Tú pegas una línea; tu agente instala, clona, conecta, revisa tu material de arte y te dice qué falta. Solo te va a pedir lo que nadie puede hacer por ti: iniciar sesión en un navegador y aceptar invitaciones.
 
 ## La línea que le pasas a tu agente
