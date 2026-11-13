@@ -21,7 +21,7 @@ $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The scripts parse.
-    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard') {
+    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio') {
         $errors = $null
         [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $tools "$name.ps1"), [ref]$null, [ref]$errors)
         Assert ($errors.Count -eq 0) "$name.ps1 parses"
@@ -87,6 +87,11 @@ try {
     Assert (@($parsed.results | Where-Object { $_.id -eq 'hooks-usuario' }).Count -eq 1) 'puesto check reports the user hooks'
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board-hooks.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'board-hooks tests pass'
+
+    # 4d. Desktop MCP (issue 97): the row exists, and its unit tests pass on this system.
+    Assert (@($parsed.results | Where-Object { $_.id -eq 'mcp-escritorio' -or $_.id -eq 'mcp' }).Count -eq 1) 'puesto check reports the desktop MCP'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'escritorio.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'escritorio unit tests pass'
 
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results

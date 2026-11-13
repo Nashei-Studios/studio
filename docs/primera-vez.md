@@ -107,6 +107,7 @@ Cada una se comprueba con `claude mcp list` (o el equivalente de tu agente). Ins
 |---|---|---|
 | Notion del estudio | `claude mcp add --transport http notion-studio https://mcp.notion.com/mcp`, luego `/mcp` | Sí: autorizar con el workspace "Nasheiii Studios" |
 | Roblox Studio | En Studio: Assistant, Manage MCP Servers, activar "Enable Studio as MCP server" | Sí: el clic |
+| Escritorio (`escritorio`): abrir Studio, pulsar Connect del aviso de Rojo, abrir una place | Lo registra `puesto.ps1 install` desde `config/ecosistema.json` (sección `escritorio`): Windows `uvx windows-mcp serve` sin las herramientas de PowerShell, archivos, registro ni scraping; macOS `npx -y @steipete/peekaboo mcp`; Linux no tiene. Codex: `codex mcp add escritorio -- <mismo comando>` | macOS sí: dar Screen Recording y Accessibility a la terminal. Windows no |
 | Blender | Pasos de `~/Nashei/repos/art/docs/blender.md` | Sí: activar el addon dentro de Blender |
 | Documentación de librerías | `claude mcp add context7 -- npx -y @upstash/context7-mcp` | No |
 | Grafo del código (`codebase-memory`) | Instalador oficial de https://github.com/DeusData/codebase-memory-mcp : en macOS y Linux `install.sh`, en Windows `install.ps1`. Descárgalo, léelo y recién entonces ejecútalo; registra el MCP solo | No |

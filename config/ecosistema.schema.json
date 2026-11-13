@@ -152,6 +152,16 @@
         }
       }
     },
+    "escritorio": {
+      "type": "object",
+      "required": ["nombre"],
+      "properties": {
+        "nombre": { "type": "string", "minLength": 1, "description": "Name the MCP is registered under in the agent." },
+        "descripcion": { "type": "string" },
+        "windows": { "$ref": "#/$defs/servidorMcp" },
+        "macos": { "$ref": "#/$defs/servidorMcp" }
+      }
+    },
     "transcripcion": {
       "type": "object",
       "properties": {
@@ -186,6 +196,20 @@
             }
           }
         }
+      }
+    }
+  },
+  "$defs": {
+    "servidorMcp": {
+      "type": "object",
+      "required": ["comando", "args"],
+      "properties": {
+        "paquete": { "type": "string", "description": "Package name in its registry (PyPI, npm)." },
+        "fuente": { "type": "string", "format": "uri", "description": "Repository of the server, for whoever audits it." },
+        "comando": { "type": "string", "minLength": 1, "description": "Executable that starts the server over stdio (uvx, npx)." },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "permisos": { "type": "array", "items": { "type": "string" }, "description": "System permissions the person grants by hand." },
+        "help": { "type": "string", "format": "uri" }
       }
     }
   }
