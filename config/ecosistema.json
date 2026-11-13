@@ -76,28 +76,34 @@
       "estado": "definido",
       "areas": [
         "código",
-        "infra"
+        "infra",
+        "economía"
       ],
       "foco": [
         "scripting",
         "sistemas",
         "rendimiento",
-        "tests"
+        "tests",
+        "monetización (sistemas, pases, precios)"
       ]
     },
     "leon": {
       "login": "leonaranguiz2012-a11y",
-      "rol": "Builder, modelado, mapas, niveles y arte",
+      "rol": "Builder, modelado, mapas, niveles, arte y toda la UI (la UI de los juegos legacy es suya y reemplaza la de la plantilla)",
       "estado": "definido",
       "areas": [
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ],
       "foco": [
         "builder",
         "modelado",
         "mapas",
         "niveles",
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ]
     },
     "nande": {
