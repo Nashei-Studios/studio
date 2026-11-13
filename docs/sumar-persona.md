@@ -11,7 +11,7 @@ Lo hace un dueño de la organización. Criterio de listo al final de cada paso.
 | 5 | Crear su etiqueta `owner:<nombre>` si no existe | La etiqueta aparece en el repo del juego |
 | 6 | Darle acceso al Team Create del juego en Studio | Puede abrir el place |
 | 7 | Invitarla al workspace de Notion y a la carpeta de Drive | Ve la portada y la carpeta |
-| 8 | Que cree sus llaves de Roblox (una por persona, de usuario, nunca de grupo: Creator Hub las desaconseja) en create.roblox.com/credentials, con acceso solo a la experiencia del juego, y las guarde ella misma con los comandos de `docs/primera-vez.md`, sección 4b. El agente nunca ve el valor | `puesto.ps1 check` marca PASA en `ROBLOX_API_KEY` y `ROBLOX_MONETIZATION_API_KEY` |
+| 8 | Que cree sus llaves de Roblox (una por persona, de usuario, nunca de grupo: Creator Hub las desaconseja) en create.roblox.com/dashboard/credentials, con acceso solo a la experiencia del juego, y las guarde ella misma con los comandos de `docs/primera-vez.md`, sección 4b. El agente nunca ve el valor | `puesto.ps1 check` marca PASA en `ROBLOX_API_KEY` y `ROBLOX_MONETIZATION_API_KEY` |
 | 9 | Que se una a https://www.roblox.com/communities/405835365 y un admin le dé rol | Aparece en los miembros de la comunidad con su rol |
 | 10 | Que lea `docs/guia-10-min.md` y deje un mensaje en el Agent Board | Hay un comentario suyo en el tablero |
 
