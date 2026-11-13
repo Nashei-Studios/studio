@@ -8,6 +8,8 @@ $tools = Split-Path $PSScriptRoot -Parent
 . (Join-Path $tools 'lib/agent-loop.ps1')
 . (Join-Path $tools 'lib/touch-log.ps1')
 . (Join-Path $tools 'lib/user-hooks.ps1')
+. (Join-Path $tools 'lib/branch-guard.ps1')
+. (Join-Path $tools 'lib/branch-guard.ps1')
 $failed = 0
 function Assert { param([bool]$Condition, [string]$What) if ($Condition) { "ok    $What" } else { "FAIL  $What"; $script:failed++ } }
 $eco = Get-Content (Join-Path $tools '../config/ecosistema.json') -Raw | ConvertFrom-Json
@@ -101,7 +103,7 @@ Assert (-not (Test-UserHooks $merged $hook).Count) 'all five events are register
 $again = Merge-UserHooks ($merged | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable) (Get-NasheiHookSpec $hook)
 Assert (($again | ConvertTo-Json -Depth 32) -eq ($merged | ConvertTo-Json -Depth 32)) 'merging twice changes nothing'
 Assert ((Test-UserHooks $existing $hook) -contains 'SessionStart') 'a missing event is reported'
-$lockOf = { param($spec) $spec.PreToolUse.hooks[0] }
+$lockOf = { param($spec) $spec.PreToolUse[0].hooks[0] }
 Assert ((& $lockOf (Get-NasheiHookSpec $hook 'estricto')).onFailure -eq 'block' -and (& $lockOf (Get-NasheiHookSpec $hook 'autonomo')).onFailure -eq 'block') 'in a blocking modo the lock fails closed'
 Assert (-not (& $lockOf (Get-NasheiHookSpec $hook 'preguntar')).Contains('onFailure')) 'with preguntar a broken lock does not stop Studio work'
 Assert ((Test-UserHooks $merged $hook 'estricto') -contains 'PreToolUse') 'check asks for install again when the modo became blocking'
@@ -222,6 +224,35 @@ try {
         Assert (-not $last.Contains($HOME) -and $last -notmatch 'gho_') 'the posted notice has no personal path and no token'
         Assert ($null -eq (Get-ActiveIssue $state)) 'cierro closes the lock again'
         Assert ((Invoke-Hook 'candado' $editB) -match '"permissionDecision":"deny"') 'after cierro an edit needs a new issue'
+
+        # 11b. Branch guard: edits on a protected branch of an organization clone.
+        $guardOrg = Join-Path $work 'guard-org'; $guardOwn = Join-Path $work 'guard-own'; $noRepo = Join-Path $work 'guard-none'
+        foreach ($r in $guardOrg, $guardOwn) { & git init --quiet -b develop $r; New-Item -ItemType Directory -Force (Join-Path $r 'src') | Out-Null }
+        New-Item -ItemType Directory -Force $noRepo | Out-Null
+        & git -C $guardOrg remote add origin "https://github.com/$org/drain-for-loot.git"
+        & git -C $guardOwn remote add origin (& git -C $ownRepo remote get-url origin)
+        $guardEdit = { param($dir, $tool = 'Edit', $key = 'file_path', $file = 'src/Main.luau', $cwd = $null)
+            $o = @{ session_id = 'G'; hook_event_name = 'PreToolUse'; tool_name = $tool; tool_input = @{ $key = (Join-Path $dir $file) } }
+            if ($cwd) { $o.cwd = $cwd; $o.tool_input[$key] = $file }
+            Invoke-Hook 'rama' $o }
+        & $setModo 'estricto'
+        $out = & $guardEdit $guardOrg
+        Assert ($out -match '"permissionDecision":"deny"' -and $out -match 'switch -c feat/' -and $out -match 'worktree add') 'rama: estricto denies an edit on develop of an organization clone and gives the branch command'
+        & $setModo 'autonomo'
+        Assert ((& $guardEdit $guardOrg 'Write') -match '"permissionDecision":"deny"') 'rama: autonomo denies a Write on develop'
+        & $setModo 'preguntar'
+        Assert ((& $guardEdit $guardOrg 'MultiEdit') -match '"permissionDecision":"ask"') 'rama: preguntar asks'
+        & $setModo 'estricto'
+        Assert ((& $guardEdit $guardOrg 'NotebookEdit' 'notebook_path' 'n.ipynb') -match '"permissionDecision":"deny"') 'rama: NotebookEdit is covered'
+        Assert ((& $guardEdit $guardOrg 'Edit' 'file_path' 'src/Main.luau' $guardOrg) -match '"permissionDecision":"deny"') 'rama: a relative path resolves against the cwd of the hook input'
+        Assert ((& $guardEdit $guardOrg 'Edit' 'file_path' 'src/new/dir/x.luau') -match '"permissionDecision":"deny"') 'rama: a file in a folder that does not exist yet still counts'
+        & git -C $guardOrg switch --quiet -c main
+        Assert ((& $guardEdit $guardOrg) -match '"permissionDecision":"deny"') 'rama: main is protected too'
+        & git -C $guardOrg switch --quiet -c feat/89-guard
+        Assert ((& $guardEdit $guardOrg).Trim() -eq '') 'rama: a feat branch passes'
+        Assert ((& $guardEdit $guardOwn).Trim() -eq '') 'rama: a repo outside the organization passes even on develop'
+        Assert ((& $guardEdit $noRepo).Trim() -eq '') 'rama: a folder that is not a repo passes'
+        Assert ((Invoke-Hook 'rama' @{ session_id = 'G'; tool_name = 'Edit'; tool_input = @{} }).Trim() -eq '') 'rama: a call that names no file passes'
 
         # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
         $fakeBin = Join-Path $work 'bin'; New-Item -ItemType Directory -Force $fakeBin | Out-Null

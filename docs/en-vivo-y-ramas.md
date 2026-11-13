@@ -36,7 +36,7 @@ Team Create guarda la place solo cada pocos minutos. Los jugadores no ven nada h
 - Cada uno programa en **su rama** (`feat/<tarea>`), en su computadora. El otro no ve nada hasta que la PR pasa el CI y entra a `develop`. Las PR son chicas y se mergean el mismo día, así nadie se queda atrás.
 - **Una sola computadora conecta Rojo a la place del grupo: la de Victor.** Con dos Rojo conectados a la misma place, uno pisa al otro. Mientras el juego es privado, lo que se lleva es `develop`. Cuando sea público, la versión publicada sale de `main` por release.
 - Para probar tu rama: un Baseplate propio con tu `rojo serve`. Nunca la place del grupo.
-- Para programar juntos en vivo: **VS Code Live Share**. Uno comparte su VS Code, los dos editan los mismos archivos en la rama de quien comparte, y ese hace el commit.
+- Cada uno programa en su rama; el trabajo del otro se revisa en su PR.
 
 ## Para Leon, en concreto
 

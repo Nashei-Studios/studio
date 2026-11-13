@@ -131,6 +131,7 @@ Reglas:
 | Registro | `PostToolUse` | Anota, con la sesión, cada edición por MCP a una place de Roblox Studio (scripts o instancias, con las rutas que nombra), cada `git push` a un repo de la organización y cada subida al Drive (`kits.ps1 push`, `rclone` al remoto del estudio, el MCP de Drive). Un push a un repo propio no se anota |
 | Aviso al cerrar | `Stop` | Si esta sesión dejó algo anotado sin avisar, no deja terminar el turno y da el comando del aviso. La segunda vez deja terminar y te avisa a ti. Lo de otra sesión no la frena |
 | Candado | `PreToolUse` | Una edición por MCP a una place del grupo (`roblox.places` de `config/ecosistema.json`) sin issue empezado en esta sesión: con `modo` `preguntar` te pide confirmación; con `autonomo` o `estricto` la bloquea. Si el propio candado falla, con `autonomo` o `estricto` también bloquea |
+| Guardia de rama | `PreToolUse` (Edit, Write, MultiEdit, NotebookEdit) | Una edición a un archivo de un clon de la organización cuya rama actual es `develop` o `main` (`github.ramas_protegidas` de `config/ecosistema.json`): con `autonomo` o `estricto` la deniega; con `preguntar` pide confirmación. El mensaje trae el comando para crear la rama. Fuera de la organización o en otra rama no hace nada, y si la guardia falla se aparta |
 
 Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el formato de la sección 1 y la lista de lo tocado. `-Sesion <id>` (el hook lo imprime y lo pone en sus comandos) limita la lista a esa sesión y le abre el candado solo a ella:
 
