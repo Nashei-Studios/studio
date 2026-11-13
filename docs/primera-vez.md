@@ -1,5 +1,7 @@
 # Primera vez: tu agente deja tu computador listo
 
+Lee también [como-trabajamos.md](como-trabajamos.md): cómo se trabaja en el día a día.
+
 Para Windows, macOS y Linux. Tú pegas una línea; tu agente instala, clona, conecta, revisa tu material de arte y te dice qué falta. Solo te va a pedir lo que nadie puede hacer por ti: iniciar sesión en un navegador y aceptar invitaciones.
 
 ## La línea que le pasas a tu agente
@@ -105,6 +107,7 @@ Cada una se comprueba con `claude mcp list` (o el equivalente de tu agente). Ins
 |---|---|---|
 | Notion del estudio | `claude mcp add --transport http notion-studio https://mcp.notion.com/mcp`, luego `/mcp` | Sí: autorizar con el workspace "Nasheiii Studios" |
 | Roblox Studio | En Studio: Assistant, Manage MCP Servers, activar "Enable Studio as MCP server" | Sí: el clic |
+| Escritorio (`escritorio`): abrir Studio, pulsar Connect del aviso de Rojo, abrir una place | Lo registra `puesto.ps1 install` desde `config/ecosistema.json` (sección `escritorio`): Windows `uvx windows-mcp serve` sin las herramientas de PowerShell, archivos, registro ni scraping; macOS `npx -y @steipete/peekaboo mcp`; Linux no tiene. Codex: `codex mcp add escritorio -- <mismo comando>` | macOS sí: dar Screen Recording y Accessibility a la terminal. Windows no |
 | Blender | Pasos de `~/Nashei/repos/art/docs/blender.md` | Sí: activar el addon dentro de Blender |
 | Documentación de librerías | `claude mcp add context7 -- npx -y @upstash/context7-mcp` | No |
 | Grafo del código (`codebase-memory`) | Instalador oficial de https://github.com/DeusData/codebase-memory-mcp : en macOS y Linux `install.sh`, en Windows `install.ps1`. Descárgalo, léelo y recién entonces ejecútalo; registra el MCP solo | No |
@@ -176,14 +179,16 @@ Lee `docs/game/beta-testing.md` del repo del juego. Las sesiones de tu persona s
 Tu agente mira el tablero y los issues, toma trabajo de tu área y te reporta. Se configura una vez en `~/Nashei/puesto.json`, junto a las rutas:
 
 ```json
-{ "areas": ["area:arte"], "modo": "preguntar", "wip": 1 }
+{ "areas": ["area:arte"], "modo": "preguntar" }
 ```
 
 - `areas`: etiquetas `area:código`, `area:ui`, `area:arte`, `area:economía`, `area:audio`, `area:crecimiento`, `area:infra`.
-- `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto) o `autonomo` (lo toma solo).
-- `wip`: cuántos issues a la vez; por defecto 1.
+- `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto), `autonomo` (lo toma solo) o `estricto` (como `preguntar` para tomar trabajo). Con `autonomo` y `estricto` el agente no puede editar por MCP la place del grupo sin un issue empezado; con `preguntar` te pide confirmación.
+- `wip` (opcional): tope personal de issues a la vez; sin él no hay tope.
 
 `pwsh tools/puesto.ps1 check` marca PERSONA si falta algo. El protocolo completo está en `AGENTS.md` y la decisión en `docs/adr/0003-agentes-que-toman-trabajo-solos.md`.
+
+`puesto.ps1 install` registra además los hooks del estudio en tu Claude Code, a nivel usuario: el tablero se ve en cualquier carpeta, lo que el agente toca en la place del grupo, los `push` y las subidas al Drive se anotan solos, y no termina un turno sin avisarlo en el tablero. Cómo funciona: [flujo-arte-y-avisos.md](flujo-arte-y-avisos.md), sección 6.
 
 ## Volver a correrlo y ponerse al día
 

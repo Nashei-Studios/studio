@@ -11,6 +11,7 @@
       "properties": {
         "organizacion": { "type": "string", "minLength": 1 },
         "rama_integracion": { "type": "string", "minLength": 1, "description": "Gitflow integration branch for repos without their own rama_base." },
+        "ramas_protegidas": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Branches nobody edits directly: the branch guard denies or asks before an edit lands on them." },
         "repos": {
           "type": "object",
           "minProperties": 1,
@@ -81,7 +82,23 @@
     "roblox": {
       "type": "object",
       "required": ["grupo_id"],
-      "properties": { "grupo_id": { "type": "integer" } }
+      "properties": {
+        "grupo_id": { "type": "integer" },
+        "places": {
+          "type": "array",
+          "description": "Places of the group. An MCP edit to one of them needs a taken issue (tools/board-hooks, issue 67).",
+          "items": {
+            "type": "object",
+            "required": ["nombre", "place_id", "universe_id"],
+            "properties": {
+              "nombre": { "type": "string", "minLength": 1 },
+              "place_id": { "type": "integer" },
+              "universe_id": { "type": "integer" },
+              "repo": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
     },
     "personas": {
       "type": "object",
@@ -135,6 +152,16 @@
         }
       }
     },
+    "escritorio": {
+      "type": "object",
+      "required": ["nombre"],
+      "properties": {
+        "nombre": { "type": "string", "minLength": 1, "description": "Name the MCP is registered under in the agent." },
+        "descripcion": { "type": "string" },
+        "windows": { "$ref": "#/$defs/servidorMcp" },
+        "macos": { "$ref": "#/$defs/servidorMcp" }
+      }
+    },
     "transcripcion": {
       "type": "object",
       "properties": {
@@ -169,6 +196,20 @@
             }
           }
         }
+      }
+    }
+  },
+  "$defs": {
+    "servidorMcp": {
+      "type": "object",
+      "required": ["comando", "args"],
+      "properties": {
+        "paquete": { "type": "string", "description": "Package name in its registry (PyPI, npm)." },
+        "fuente": { "type": "string", "format": "uri", "description": "Repository of the server, for whoever audits it." },
+        "comando": { "type": "string", "minLength": 1, "description": "Executable that starts the server over stdio (uvx, npx)." },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "permisos": { "type": "array", "items": { "type": "string" }, "description": "System permissions the person grants by hand." },
+        "help": { "type": "string", "format": "uri" }
       }
     }
   }

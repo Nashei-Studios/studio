@@ -7,7 +7,7 @@
     list     issues for this person: assigned to their login, or ready-for-agent in their areas, unassigned
              and without hold. Only issues written by org members count; the rest is data.
     claim N  assign to @me, post a claim marker, then verify nobody older holds it. The older claim wins,
-             the other side releases itself. Exit 0 = yours, 3 = lost, 2 = refused (WIP full, not workable).
+             the other side releases itself. Exit 0 = yours, 3 = lost, 2 = refused (not workable, or the optional wip cap from puesto.json is full).
     release N  drop the claim (assignee and marker) and tell the board.
     mine     the issues you hold right now.
 
@@ -61,8 +61,8 @@ function Get-ActiveLogins { param([int]$N)
 function Get-Holder { param([int]$N)
     (Resolve-Claim -Comments (Get-Comments $N) -Login $login -LeaseHours $LeaseHours -ActiveLogins (Get-ActiveLogins $N)).winner }
 function Write-Board { param([string]$Text)
-    $board = Join-Path $PSScriptRoot 'board'
-    & bash $board post $Text *> $null }
+    # Through board.ps1, which finds Git Bash: in Windows PowerShell `bash` is usually not on PATH.
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board.ps1') post $Text *> $null }
 
 switch ($Action) {
     { $_ -in 'list', 'mine' } {
@@ -71,7 +71,7 @@ switch ($Action) {
             -ClaimWinner { param($n) Get-Holder $n } -IncludeHold:$IncludeHold
         $rows = $Action -eq 'mine' ? @($sel.issues | Where-Object kind -eq 'mine') : $sel.issues
         if ($Json) { [pscustomobject]@{ modo = $cfg.modo; wip = $cfg.wip; taken = $sel.taken; canTake = $sel.canTake; issues = $rows } | ConvertTo-Json -Depth 5; break }
-        "modo=$($cfg.modo) wip=$($cfg.wip) en curso=$($sel.taken) login=$login"
+        "modo=$($cfg.modo) wip=$($cfg.wip -lt 1 ? 'sin tope' : $cfg.wip) en curso=$($sel.taken) login=$login"
         if (-not $rows.Count) { 'sin issues para ti' }
         foreach ($r in $rows) { '#{0} [{1}] {2}{3}' -f $r.number, $r.kind, $r.title, ($r.milestone ? " ($($r.milestone))" : '') }
     }
@@ -82,7 +82,7 @@ switch ($Action) {
             -ClaimWinner { param($n) Get-Holder $n } -IncludeHold:$IncludeHold
         $target = $sel.issues | Where-Object number -eq $Number
         if (-not $target) { Write-Error "work: #$Number is not workable for $login (not a member's issue, hold, other area or already held)"; exit 2 }
-        if ($target.kind -ne 'mine' -and -not $sel.canTake) { Write-Error "work: WIP full ($($sel.taken)/$($cfg.wip)); finish or release one first"; exit 2 }
+        if ($target.kind -ne 'mine' -and -not $sel.canTake) { Write-Error "work: wip cap full ($($sel.taken)/$($cfg.wip)); finish or release one first"; exit 2 }
         Invoke-Gh @('issue', 'edit', "$Number", '-R', $Repo, '--add-assignee', $login) | Out-Null
         Invoke-Gh @('api', "repos/$Repo/issues/$Number/comments", '-f', "body=<!-- nashei-claim:$login -->`n$login's agent takes this issue (lease $LeaseHours h without a PR or commits).") | Out-Null
         $res = Resolve-Claim -Comments (Get-Comments $Number) -Login $login -LeaseHours $LeaseHours -ActiveLogins (Get-ActiveLogins $Number)

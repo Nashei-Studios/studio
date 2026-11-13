@@ -21,7 +21,7 @@ flowchart TD
   B -->|si| D[work.ps1 claim N]
   C --> D
   D -->|exit 3| X[Otro lo tiene: soltar y avisar]
-  D -->|exit 2| Y[WIP lleno o no tomable: decir por que]
+  D -->|exit 2| Y[no tomable o tope wip propio lleno: decir por que]
   D -->|exit 0| E[Aviso: empiezo #N]
   E --> F[Trabajar]
   F --> G[Aviso de avance relevante]
@@ -34,12 +34,14 @@ Pasos, en este orden. Aplican igual a modelado en Blender, texturas, concept, so
 
 1. **Buscar el issue.** `pwsh tools/work.ps1 list` y `mine`; si no está ahí, `gh issue list -R <repo> --label area:arte --search "<tema>"`. Antes de crear otro, revisa que nadie tenga el mismo.
 2. **Si no hay, crearlo antes de empezar.** En el repo del juego con la plantilla de historia o `art-request.yml` ("Pedido de modelo o arte"). Etiquetas: `area:arte`, `owner:leon` y el `tipo:` que corresponda. Después súbelo al Project del juego (Drain for Loot es el Project 2 de la organización): `gh project item-add 2 --owner Nashei-Studios --url <url del issue>`, con `Carril`, `Prioridad` y `Tamaño` llenos. Si algún campo no lo sabes, pregunta a la persona; no lo inventes.
-3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es WIP lleno o issue no tomable. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
+3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es issue no tomable o tope `wip` propio lleno. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
 4. **Avisar en el tablero:**
 
    ```
    tools/board post "[Leon's Claude] empiezo #N: <qué, en una frase>. Toca: <archivos o zonas, o 'nada del juego'>. Espero: <de quién, o 'nada'>."
    ```
+
+   Con los hooks de usuario (sección 6) el mismo aviso sale de `pwsh tools/board-hooks/aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..."`, que además comprueba que el issue esté tomado y abre el candado.
 
 5. **Avance relevante.** Un mensaje corto cuando cambia algo de lo que otro depende: la forma o el nombre de un asset, un nuevo bloqueo, un cambio de alcance, una decisión. No hace falta avisar cada hora ni para acusar recibo.
 6. **Cierre.** `[Leon's Claude] cierro #N: <qué quedó>, PR <url>, asset <id>.` y la PR lleva `Closes #N`.
@@ -87,7 +89,7 @@ sequenceDiagram
   A->>J: PR del juego con Closes si corresponde
 ```
 
-1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el [ADR 0002 de art](https://github.com/Nashei-Studios/art/blob/develop/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md) y la [barra de arte](https://github.com/Nashei-Studios/art/blob/develop/docs/barra-de-arte.md).
+1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el ADR 0002 de art (`art/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md`, repo privado) y la barra de arte (`art/docs/barra-de-arte.md`).
 2. **Compuerta en verde.** `pwsh tools/build.ps1 -Asset <slug> -Sources <fuentes>` debe terminar con `GATE True` y código de salida 0. Nunca se baja el presupuesto para que pase.
 3. **PR a `develop` de `art`** con la receta, la ficha y el `.glb`, `Closes #N` del issue de arte o `Refs` si el issue vive en el juego.
 4. **`.blend` al Drive.** `pwsh tools/kits.ps1 push -Path <biblioteca>/50-arte -Folder 50-arte`. **Solo con la aprobación explícita de Leon** para ese paquete; el agente no sube nada por su cuenta. Lo reutilizable como kit va a `10-kits` con su nota en `roblox-vault/kits/`.
@@ -118,6 +120,33 @@ Reglas:
 4. **El corte:** desde ese momento la place se maneja con Rojo y la plantilla, y el código se edita en `src/` por PR. Antes del corte se le avisa con tiempo en el tablero para que deje todo guardado; el agente confirma con `listo para el corte` cuando lo está.
 5. Las zonas compartidas de la sección 2 siguen pidiendo aviso a Victor antes de tocarlas; la diferencia es que ahora el aviso incluye la ruta exacta.
 6. Tras el corte, el código del juego deja de editarse en Studio (`src/` por PR, ver `AGENTS.md` del juego) y el agente de arte vuelve a hacer solo arte.
+
+## 6. Lo que hace solo el sistema: hooks de usuario
+
+`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` del clon de `studio`. Corren en cualquier carpeta, en Windows, macOS y Linux, y un `pull` del clon los actualiza. `puesto.ps1 check` dice si están y si calzan con tu `modo` (fila "Hooks del estudio a nivel usuario"); si cambias el `modo`, vuelve a correr `install`. `pwsh tools/puesto.ps1 uninstall-hooks` los quita y deja el resto del archivo como estaba; la primera instalación guarda el original en `settings.json.bak-nashei`.
+
+| Hook | Evento | Qué hace |
+|---|---|---|
+| Tablero | `SessionStart`, `UserPromptSubmit` | Muestra lo no leído del Agent Board y la cola, como dentro de un clon, y el id de la sesión para los avisos. Dentro de un clon que ya trae sus propios hooks se calla, para no repetir |
+| Registro | `PostToolUse` | Anota, con la sesión, cada edición por MCP a una place de Roblox Studio (scripts o instancias, con las rutas que nombra), cada `git push` a un repo de la organización y cada subida al Drive (`kits.ps1 push`, `rclone` al remoto del estudio, el MCP de Drive). Un push a un repo propio no se anota |
+| Aviso al cerrar | `Stop` | Si esta sesión dejó algo anotado sin avisar, no deja terminar el turno y da el comando del aviso. La segunda vez deja terminar y te avisa a ti. Lo de otra sesión no la frena |
+| Candado | `PreToolUse` | Una edición por MCP a una place del grupo (`roblox.places` de `config/ecosistema.json`) sin issue empezado en esta sesión: con `modo` `preguntar` te pide confirmación; con `autonomo` o `estricto` la bloquea. Si el propio candado falla, con `autonomo` o `estricto` también bloquea |
+| Guardia de rama | `PreToolUse` (Edit, Write, MultiEdit, NotebookEdit) | Una edición a un archivo de un clon de la organización cuya rama actual es `develop` o `main` (`github.ramas_protegidas` de `config/ecosistema.json`): con `autonomo` o `estricto` la deniega; con `preguntar` pide confirmación. El mensaje trae el comando para crear la rama. Fuera de la organización o en otra rama no hace nada, y si la guardia falla se aparta |
+
+Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el formato de la sección 1 y la lista de lo tocado. `-Sesion <id>` (el hook lo imprime y lo pone en sus comandos) limita la lista a esa sesión y le abre el candado solo a ella:
+
+| Comando | Qué hace |
+|---|---|
+| `aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..." -Sesion <id>` | Publica `empiezo` si el issue está abierto y asignado a ti, y abre el candado por 24 h |
+| `aviso.ps1 retomo -Sesion <id>` | No publica: el issue empezado en otra sesión (menos de 24 h) abre el candado de esta, si sigue abierto y tuyo |
+| `aviso.ps1 avance -Que "..." -Sesion <id>` | Publica `avance` con la lista de lo tocado y la vacía |
+| `aviso.ps1 cierro -Que "..." -Pr <url> -Asset <id> -Sesion <id>` | Publica `cierro` con la lista, la vacía y cierra el candado |
+| `aviso.ps1 pendiente` | No publica: muestra el issue activo y lo que falta avisar |
+
+- El registro y el issue activo viven en `~/Nashei/estado/`, fuera de los repos. Lo que se publica pasa por un filtro: sin rutas personales (quedan como `~`), sin credenciales dentro de una URL y sin nada con forma de token o llave. Un `@login` en el texto se escribe como código para no notificar a nadie; `-Mencionar` lo deja como mención, por ejemplo para avisarle a Victor de una zona compartida.
+- La place de un Studio se conoce por `list_roblox_studios`; mientras el agente no la haya llamado, el candado trata ese Studio como del grupo.
+- El candado mira solo las ediciones por MCP. Lo que tu persona hace a mano en Studio no pasa por los hooks y se avisa igual que siempre.
+- Las variables de prueba de `aviso.ps1` (`NASHEI_TABLERO_SIMULADO`, `NASHEI_ISSUE_SIMULADO`) solo valen con `NASHEI_TEST=1` en CI; fuera de eso `aviso.ps1` las rechaza.
 
 ## Qué no hace el agente de arte
 

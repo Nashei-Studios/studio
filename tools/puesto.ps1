@@ -6,7 +6,9 @@
 .DESCRIPTION
     check    prints PASA / FALLA / NO APLICA / PERSONA per check, changes nothing, exits 1 on any FALLA.
     install  installs what is missing with the system package manager, clones the repos, sets the
-             git hooks and pulls the Drive library; then runs check.
+             git hooks, registers the studio's Claude Code hooks at user level (tools/board-hooks) and
+             pulls the Drive library; then runs check.
+    uninstall-hooks  removes only the studio's entries from the user's Claude Code settings.json.
 
   A step that needs the person (a browser login, an invitation) is never automated: it is printed
   as PERSONA with the exact command to run.
@@ -15,8 +17,10 @@
     { "repos": ["D:/code/nashei", "D:/code/roblox"], "biblioteca": { "10-kits": "D:/Roblox/kits" } }
   The agent works on its own from the board and the issues (ADR 0003). It needs, in the same file:
     "areas": ["area:arte"]       issue labels it may take (area:código, area:ui, area:arte, area:economía, ...)
-    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it
-    "wip":   1                   issues in progress at once (default 1)
+    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it;
+                                 estricto = like preguntar. With autonomo and estricto an MCP edit to a group place is
+                                 blocked without a started issue; with preguntar the person is asked
+    "wip":   2                   optional personal cap on issues in progress; unset = no cap
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
 
@@ -24,10 +28,11 @@
   pwsh tools/puesto.ps1 install
   pwsh tools/puesto.ps1 check -Perfil arte
   pwsh tools/puesto.ps1 check -Json
+  pwsh tools/puesto.ps1 uninstall-hooks
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0)][ValidateSet('check', 'install')][string]$Action = 'check',
+    [Parameter(Position = 0)][ValidateSet('check', 'install', 'uninstall-hooks')][string]$Action = 'check',
     # arte: models, map, ideas, tests. codigo: the game toolchain too. todo: both.
     [ValidateSet('arte', 'codigo', 'todo')][string]$Perfil = 'todo',
     # Where clones and the library live. Pick once and keep it.
@@ -47,7 +52,15 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
+. (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
+. (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+if ($Action -eq 'uninstall-hooks') {
+    $why = Uninstall-UserHooks
+    if ($why) { "PERSONA   Hooks del estudio a nivel usuario: $why"; exit 1 }
+    "PASA      Hooks del estudio quitados de $(Get-ClaudeSettingsPath) (el resto del archivo quedó igual)"
+    exit 0
+}
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
@@ -78,7 +91,12 @@ function Invoke-Quiet { param([string]$Exe, [string[]]$ExeArgs)
 # A missing id means there is no package for that system: the row says where to get it.
 # "snap:<name>" installs a classic snap; "script:<url>" runs the project's own installer.
 $rokitScript = 'https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh'
+# The desktop MCP of this system (issue 97), from the ecosystem config; $null where there is none (Linux).
+$escritorioSpec = Get-EscritorioSpec $ecosystem $os
 $tools = @(
+    # uv only matters where the desktop MCP runs through uvx: the need comes from the config, not from the system name.
+    @{ id = 'uv';      cmd = 'uvx';     need = [bool]($escritorioSpec -and $escritorioSpec.comando -eq 'uvx'); windows = 'astral-sh.uv'; macos = 'uv'; linux = 'script:https://astral.sh/uv/install.sh'; help = 'https://docs.astral.sh/uv/'
+       paths = @((Join-Path $HOME '.local/bin/uvx'), (Join-Path $HOME '.local/bin/uvx.exe')) }
     @{ id = 'git';     cmd = 'git';     need = $true;      windows = 'Git.Git';                  macos = 'git';              linux = 'git' }
     @{ id = 'gh';      cmd = 'gh';      need = $true;      windows = 'GitHub.cli';               macos = 'gh';               linux = 'gh' }
     @{ id = 'rclone';  cmd = 'rclone';  need = $true;      windows = 'Rclone.Rclone';            macos = 'rclone';           linux = 'rclone' }
@@ -286,15 +304,52 @@ if (Test-Cmd claude) {
         $state = -not $line ? 'PERSONA' : ($line -match 'Connected' ? 'PASA' : 'PERSONA')
         Add-Result "mcp-$server" $state "Agente conectado a $server" ($state -eq 'PASA' ? '' : 'ver docs/primera-vez.md, tabla de conexiones')
     }
+    # The desktop MCP (issue 97): the agent opens Studio, presses Connect on Rojo's notice and opens a place by itself.
+    # install registers it at user level when it is absent; a row already registered (any transport) is left as it is.
+    $escritorioName = $ecosystem.escritorio.nombre
+    if (-not $escritorioSpec) { Add-Result "mcp-$escritorioName" 'NO APLICA' 'Agente maneja el escritorio' "no hay MCP de escritorio para $os" }
+    else {
+        $escritorioState = Get-EscritorioState $mcp.out $escritorioName
+        $exe = (Get-Command $escritorioSpec.comando -ErrorAction SilentlyContinue).Source
+        if ($escritorioState -eq 'ausente' -and $doInstall -and $exe) {
+            Invoke-Quiet claude (Get-EscritorioAddArgs $ecosystem $os $exe) | Out-Null
+            $mcp = Invoke-Quiet claude @('mcp', 'list')
+            $escritorioState = Get-EscritorioState $mcp.out $escritorioName
+        }
+        $addCommand = "claude $((Get-EscritorioAddArgs $ecosystem $os) -join ' ')"
+        $escritorioDetail = switch ($escritorioState) {
+            'conectado' { '' }
+            'ausente' { $exe ? "registrarlo con: $addCommand" : "falta $($escritorioSpec.comando) ($($escritorioSpec.help ?? $escritorioSpec.fuente)); luego: $addCommand" }
+            default { "registrado pero sin conexión: prueba a mano $($escritorioSpec.comando) $($escritorioSpec.args -join ' ')" + ($escritorioSpec.permisos ? "; en $os la persona debe dar permisos de $($escritorioSpec.permisos -join ' y ') a la terminal" : '') }
+        }
+        Add-Result "mcp-$escritorioName" ($escritorioState -eq 'conectado' ? 'PASA' : 'PERSONA') 'Agente maneja el escritorio (abrir Studio, Connect de Rojo, abrir una place)' $escritorioDetail
+    }
 } else { Add-Result 'mcp' 'NO APLICA' 'Conexiones MCP' 'no hay Claude Code en este equipo; tu agente usa su propio modo de conectarse' }
 
 # Informational, never blocks: the Blender MCP warns about protocol 15 and expects 16 when the addon is stale.
 if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
     Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
 }
+# ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
+# before ending the turn, start lock. They point at the studio clone, so a pull updates them. ----
+if (Test-Cmd claude) {
+    $studioClone = $clones['studio'] ?? (Split-Path $PSScriptRoot -Parent)
+    $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
+    $settingsPath = Get-ClaudeSettingsPath
+    $why = ''
+    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo }
+    elseif ($doInstall) { $why = 'el clon de studio no trae tools/board-hooks/board-hook.ps1: actualízalo y vuelve a correr install' }
+    $missingHooks = @()
+    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo) }
+    catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
+    $hooksOk = -not $why -and -not $missingHooks.Count
+    $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
+    Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado, guardia de rama)' $hooksDetail
+} else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
-$communityId = 405835365
+# The Roblox community comes from the ecosystem config, like every other id.
+$communityId = [long]$ecosystem.roblox.grupo_id
 $communityUrl = "https://www.roblox.com/communities/$communityId"
 $keysFile = Join-Path $HOME '.config/nashei/claves.env'
 function Test-KeyPresent { param([string]$Name)

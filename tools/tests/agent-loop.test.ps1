@@ -39,7 +39,7 @@ $issues = @(
     (I 6 @('ready-for-agent', 'area:arte') 'vruizz22' @('leonaranguiz2012-a11y')),
     (I 7 @('ready-for-agent', 'area:arte') 'vruizz22' @() '2026-12-01T00:00:00Z'),
     (I 8 @('ready-for-agent', 'area:arte', 'ready-for-human')))
-$sel = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -Areas @('area:arte') -Wip 1
+$sel = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -Areas @('area:arte')
 $nums = @($sel.issues.number)
 Assert ($nums -contains 5) 'an issue assigned to me is listed'
 Assert ($nums -contains 1 -and $nums -contains 7) 'free ready-for-agent issues of my area are listed'
@@ -50,9 +50,11 @@ Assert ($nums -notcontains 6) 'an issue assigned to someone else is excluded'
 Assert ($nums -notcontains 8) 'ready-for-human is excluded'
 Assert ($nums[0] -eq 5) 'mine first, then by milestone and age'
 Assert ($nums[1] -eq 7) 'a dated milestone sorts before an undated one'
-Assert (-not $sel.canTake) 'WIP=1 with one issue in progress: cannot take more'
+Assert $sel.canTake 'no wip configured: one issue in progress does not block taking more'
 $free = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -Areas @('area:arte') -Wip 2
 Assert $free.canTake 'WIP=2 leaves room'
+$capped = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -Areas @('area:arte') -Wip 1
+Assert (-not $capped.canTake) 'a configured wip=1 with one issue in progress blocks taking more'
 $held = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -Areas @('area:arte') -ClaimWinner { param($n) $n -eq 1 ? 'leonaranguiz2012-a11y' : $null }
 Assert (@($held.issues.number) -notcontains 1) 'an issue claimed by someone else is excluded'
 Assert ((Format-IssueTitle "a`e[31mb`n$('x'*200)").Length -le 103) 'issue titles lose control characters and are bounded'
@@ -63,6 +65,8 @@ try {
     Assert ((Test-AgentLoopConfig $base).state -eq 'PERSONA') 'no puesto.json is PERSONA'
     '{"areas":["area:arte"],"modo":"autonomo","wip":2}' | Set-Content (Join-Path $base 'puesto.json')
     Assert ((Test-AgentLoopConfig $base).state -eq 'PASA') 'a complete config passes'
+    '{"areas":["area:arte"],"modo":"estricto"}' | Set-Content (Join-Path $base 'puesto.json')
+    Assert ((Get-PuestoLoopConfig $base).modo -eq 'estricto') 'estricto is accepted as modo'
     '{"areas":["arte"]}' | Set-Content (Join-Path $base 'puesto.json')
     $c = Get-PuestoLoopConfig $base
     Assert ($c.modo -eq 'preguntar' -and $c.problems.Count -ge 2) 'bad areas and missing modo are reported, default modo is preguntar'

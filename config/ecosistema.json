@@ -5,6 +5,7 @@
   "github": {
     "organizacion": "Nashei-Studios",
     "rama_integracion": "develop",
+    "ramas_protegidas": ["develop", "main"],
     "repos": {
       "studio": { "slug": "Nashei-Studios/studio", "rama_base": "develop" },
       "claude-toolkit": { "slug": "Nashei-Studios/claude-toolkit", "rama_base": "develop" },
@@ -63,7 +64,12 @@
       "archivo": { "nombre": "90-archivo", "id": "1iIM57oV7GABETHXQ3aEzyJDJ_IZ-GGkn" }
     }
   },
-  "roblox": { "grupo_id": 405835365 },
+  "roblox": {
+    "grupo_id": 405835365,
+    "places": [
+      { "nombre": "Drain the Sea!", "place_id": 101914861453386, "universe_id": 10776256736, "repo": "drain-for-loot" }
+    ]
+  },
   "personas": {
     "victor": {
       "login": "vruizz22",
@@ -71,36 +77,42 @@
       "estado": "definido",
       "areas": [
         "código",
-        "infra"
+        "infra",
+        "economía"
       ],
       "foco": [
         "scripting",
         "sistemas",
         "rendimiento",
-        "tests"
+        "tests",
+        "monetización (sistemas, pases, precios)"
       ]
     },
     "leon": {
       "login": "leonaranguiz2012-a11y",
-      "rol": "Builder, modelado, mapas, niveles y arte",
+      "rol": "Builder, modelado, mapas, niveles, arte y toda la UI (la UI de los juegos legacy es suya y reemplaza la de la plantilla)",
       "estado": "definido",
       "areas": [
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ],
       "foco": [
         "builder",
         "modelado",
         "mapas",
         "niveles",
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ]
     },
     "nande": {
       "login": "Nandeken",
-      "rol": "por definir",
-      "estado": "por-definir",
-      "areas": [],
-      "foco": []
+      "rol": "Beta tester y líder del grupo (dirige el proyecto). Base fijada por Victor el 2026-11-13; todavía sin agente propio",
+      "estado": "definido",
+      "areas": ["crecimiento"],
+      "foco": ["beta testing", "dirección del proyecto", "prioridades", "validación global"]
     }
   },
   "planificacion": {
@@ -180,6 +192,23 @@
         "tipo": "builtin",
         "nota": "Campo Responsable: es el asignado nativo de GitHub; el login sale de personas."
       }
+    }
+  },
+  "escritorio": {
+    "nombre": "escritorio",
+    "descripcion": "MCP de escritorio por stdio: abrir Studio, pulsar Connect del aviso de Rojo, abrir una place. Claude Code lo lanza con la sesión, sin tarea programada ni puerto. Linux no tiene.",
+    "windows": {
+      "paquete": "windows-mcp",
+      "fuente": "https://github.com/CursorTouch/Windows-MCP",
+      "comando": "uvx",
+      "args": ["windows-mcp", "serve", "--exclude-tools", "PowerShell,FileSystem,Registry,Scrape"]
+    },
+    "macos": {
+      "paquete": "@steipete/peekaboo",
+      "fuente": "https://github.com/steipete/Peekaboo",
+      "comando": "npx",
+      "args": ["-y", "@steipete/peekaboo", "mcp"],
+      "permisos": ["Screen Recording", "Accessibility"]
     }
   },
   "transcripcion": {

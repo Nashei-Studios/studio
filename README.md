@@ -4,14 +4,15 @@ Este repo no tiene código de juego. Es la puerta de entrada del estudio: aquí 
 
 Si eres nuevo, lee en este orden:
 
-1. [docs/guia-10-min.md](docs/guia-10-min.md): cómo se trabaja, en 10 minutos.
-2. [CONTEXT.md](CONTEXT.md): el documento de contexto. Se le pasa a la IA antes de pedirle cualquier cosa.
-3. [docs/acuerdos.md](docs/acuerdos.md): los acuerdos del equipo (horas, bloqueos, cuándo se cierra un juego).
-4. [docs/ecosistema.md](docs/ecosistema.md): qué repo, qué carpeta de Drive y qué página de Notion sirve para qué.
-5. [docs/primera-vez.md](docs/primera-vez.md): una línea para tu agente y deja tu computador listo, en cualquier sistema. Detalle de cada herramienta en [docs/instalacion.md](docs/instalacion.md).
-6. [docs/como-funciona.md](docs/como-funciona.md): el sistema completo, de la idea al cierre de un juego.
-7. [docs/flujo-de-trabajo.md](docs/flujo-de-trabajo.md): de la idea al changelog, con interrogatorio, spec, historias y etiquetas.
-8. [docs/verificacion.md](docs/verificacion.md): la lista que corre el agente de cada persona para comprobar que su equipo quedó conectado.
+1. [docs/como-trabajamos.md](docs/como-trabajamos.md): la página de entrada, cómo trabajamos en tres frases.
+2. [docs/guia-10-min.md](docs/guia-10-min.md): cómo se trabaja, en 10 minutos.
+3. [CONTEXT.md](CONTEXT.md): el documento de contexto. Se le pasa a la IA antes de pedirle cualquier cosa.
+4. [docs/acuerdos.md](docs/acuerdos.md): los acuerdos del equipo (horas, bloqueos, cuándo se cierra un juego).
+5. [docs/ecosistema.md](docs/ecosistema.md): qué repo, qué carpeta de Drive y qué página de Notion sirve para qué.
+6. [docs/primera-vez.md](docs/primera-vez.md): una línea para tu agente y deja tu computador listo, en cualquier sistema. Detalle de cada herramienta en [docs/instalacion.md](docs/instalacion.md).
+7. [docs/como-funciona.md](docs/como-funciona.md): el sistema completo, de la idea al cierre de un juego.
+8. [docs/flujo-de-trabajo.md](docs/flujo-de-trabajo.md): de la idea al changelog, con interrogatorio, spec, historias y etiquetas.
+9. [docs/verificacion.md](docs/verificacion.md): la lista que corre el agente de cada persona para comprobar que su equipo quedó conectado.
 
 ## Qué es y qué no es
 
