@@ -89,6 +89,44 @@ try {
     Assert (@($none | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PERSONA' }).Count -eq 2) 'absent Roblox keys are PERSONA'
     Assert (@($all | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PASA' }).Count -eq 2) 'present Roblox keys are PASA'
     Assert (@($none | Where-Object { $_.id -eq 'comunidad' -and $_.state -eq 'PERSONA' }).Count -eq 1) 'community membership without a user id is PERSONA'
+    # 5b. The real path: keys present in the environment and no simulated parameter must give PASA.
+    if ($true) {
+        $savedKeys = @($env:ROBLOX_API_KEY, $env:ROBLOX_MONETIZATION_API_KEY)
+        $env:ROBLOX_API_KEY = 'smoke-not-a-real-key'; $env:ROBLOX_MONETIZATION_API_KEY = 'smoke-not-a-real-key'
+        try {
+            $real = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') | Out-String | ConvertFrom-Json).results
+            Assert (@($real | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PASA' }).Count -eq 2) 'real environment keys without the simulated parameter are PASA'
+        } finally { $env:ROBLOX_API_KEY = $savedKeys[0]; $env:ROBLOX_MONETIZATION_API_KEY = $savedKeys[1] }
+    }
+    $paramSrc = Get-Content (Join-Path $tools 'puesto.ps1') -Raw
+    Assert ($paramSrc -match "PSBoundParameters\.ContainsKey\('LlavesSimuladas'\)" -and $paramSrc -notmatch '\$null -[en]q \$(script:)?LlavesSimuladas') 'the key simulation is keyed on the bound parameter, never on $null'
+
+    # 5c. Clones: one stays on main with develop available. check flags it; install moves it only when clean.
+    . (Join-Path $tools 'lib/clone-branch.ps1')
+    $eco = Get-Content (Join-Path $tools '../config/ecosistema.json') -Raw | ConvertFrom-Json
+    $origin = Join-Path $work 'origin.git'; $seed = Join-Path $work 'seed'; $clone = Join-Path $work 'repos' 'studio'
+    $git = @('-c', 'user.name=smoke', '-c', 'user.email=smoke@example.com')
+    & git init --quiet --bare -b main $origin
+    & git clone --quiet $origin $seed 2>$null
+    & git -C $seed @git commit --quiet --allow-empty -m init
+    & git -C $seed push --quiet origin main
+    & git -C $seed push --quiet origin main:develop
+    & git clone --quiet $origin $clone 2>$null
+    & git -C $clone remote set-head origin main | Out-Null
+    $sync = { param([switch]$Install) Sync-CloneBranch -Dir $clone -Name 'studio' -Ecosystem $eco -Org 'Nashei-Studios' -Install:$Install }
+    Assert ([bool](& $sync)) 'check flags a clone on main when develop exists'
+    & git -C $clone @git commit --quiet --allow-empty -m local
+    Assert ([bool](& $sync -Install) -and (& git -C $clone branch --show-current) -eq 'main') 'install leaves a clone with unpushed commits on main and says why'
+    & git -C $clone reset --quiet --hard origin/main
+    Set-Content (Join-Path $clone 'wip.txt') 'x'; & git -C $clone add wip.txt
+    Assert ([bool](& $sync -Install) -and (& git -C $clone branch --show-current) -eq 'main') 'install leaves a dirty clone on main and says why'
+    & git -C $clone reset --quiet --hard origin/main
+    Assert (-not (& $sync -Install) -and (& git -C $clone branch --show-current) -eq 'develop') 'install moves a clean clone from main to develop'
+    & git -C $seed @git commit --quiet --allow-empty -m next; & git -C $seed push --quiet origin main:develop
+    Assert (-not (& $sync -Install) -and (& git -C $clone rev-parse HEAD) -eq (& git -C $seed rev-parse HEAD)) 'install fast-forwards the integration branch'
+    & git -C $clone checkout --quiet -b feature/x
+    Assert (-not (& $sync -Install) -and (& git -C $clone branch --show-current) -eq 'feature/x') 'install never moves a clone off a feature branch'
+
     # 6. Drive remote: a simulated rclone (node script behind an rclone shim on PATH).
     $fake = Join-Path $work 'fakebin'; New-Item -ItemType Directory -Force $fake | Out-Null
     Copy-Item (Join-Path $PSScriptRoot 'fake-rclone.mjs') $fake
