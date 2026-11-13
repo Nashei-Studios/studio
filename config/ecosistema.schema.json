@@ -12,6 +12,16 @@
         "organizacion": { "type": "string", "minLength": 1 },
         "rama_integracion": { "type": "string", "minLength": 1, "description": "Gitflow integration branch for repos without their own rama_base." },
         "ramas_protegidas": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Branches nobody edits directly: the branch guard denies or asks before an edit lands on them." },
+        "project_estados": {
+          "type": "object",
+          "required": ["campo", "al_tomar", "al_soltar"],
+          "description": "Project v2 status that work.ps1 sets on claim and release. In review and done are moved by the Project's built-in workflows.",
+          "properties": {
+            "campo": { "type": "string", "minLength": 1, "description": "Single-select field that holds the status." },
+            "al_tomar": { "type": "string", "minLength": 1, "description": "Option set when an agent claims the issue." },
+            "al_soltar": { "type": "string", "minLength": 1, "description": "Option set when the agent releases it." }
+          }
+        },
         "repos": {
           "type": "object",
           "minProperties": 1,

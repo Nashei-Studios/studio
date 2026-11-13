@@ -131,6 +131,23 @@ function Test-AgentLoopClone {
     $rows
 }
 
+function Select-StatusUpdates {
+    <# Which Project cards a status change moves (issue 102). Items are the GraphQL nodes of
+       issue.projectItems, each with project.field resolved by the status field name. Returns
+       .updates (projectId, itemId, fieldId, optionId) and .skipped (project title and why). #>
+    param($Items, [string]$Status)
+    $updates = @(); $skipped = @()
+    foreach ($item in @($Items | Where-Object { $_ })) {
+        $title = $item.project.title
+        $field = $item.project.field
+        if (-not $field -or -not $field.id) { $skipped += [pscustomobject]@{ project = $title; why = 'no tiene el campo de estado' }; continue }
+        $option = @($field.options | Where-Object { $_.name -eq $Status })[0]
+        if (-not $option) { $skipped += [pscustomobject]@{ project = $title; why = "no tiene la opción '$Status'" }; continue }
+        $updates += [pscustomobject]@{ projectId = $item.project.id; itemId = $item.id; fieldId = $field.id; optionId = $option.id }
+    }
+    [pscustomobject]@{ updates = $updates; skipped = $skipped }
+}
+
 function Test-AgentLoopConfig {
     param([string]$Base)
     $cfg = Get-PuestoLoopConfig -Base $Base

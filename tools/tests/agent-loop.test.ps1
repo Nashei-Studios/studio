@@ -59,6 +59,17 @@ $held = Select-WorkIssues -Issues $issues -Members $members -Login 'nandeken' -A
 Assert (@($held.issues.number) -notcontains 1) 'an issue claimed by someone else is excluded'
 Assert ((Format-IssueTitle "a`e[31mb`n$('x'*200)").Length -le 103) 'issue titles lose control characters and are bounded'
 
+# Project cards (issue 102): one update per Project that has the field and the option.
+function PI { param($item, $proj, $field, [string[]]$opts)
+    [pscustomobject]@{ id = $item; project = [pscustomobject]@{ id = $proj; title = "p-$proj"
+        field = $field ? [pscustomobject]@{ id = $field; options = @($opts | ForEach-Object { [pscustomobject]@{ id = "o-$_"; name = $_ } }) } : $null } } }
+$items = @((PI 'i1' 'P1' 'F1' @('Listo', 'En curso')), (PI 'i2' 'P2' $null @()), (PI 'i3' 'P3' 'F3' @('Todo', 'Done')))
+$s = Select-StatusUpdates -Items $items -Status 'En curso'
+Assert ($s.updates.Count -eq 1 -and $s.updates[0].itemId -eq 'i1' -and $s.updates[0].optionId -eq 'o-En curso' -and $s.updates[0].fieldId -eq 'F1') 'the card moves only in the Project that has the option'
+Assert ($s.skipped.Count -eq 2 -and ($s.skipped.why -join '|') -match 'campo' -and ($s.skipped.why -join '|') -match 'En curso') 'Projects without the field or the option are reported, not failed'
+Assert ((Select-StatusUpdates -Items @() -Status 'Listo').updates.Count -eq 0) 'an issue outside every Project moves nothing'
+Assert ((Select-StatusUpdates -Items $null -Status 'Listo').skipped.Count -eq 0) 'a null item list is handled'
+
 # Config.
 $base = Join-Path ([IO.Path]::GetTempPath()) "loop-$PID"; New-Item -ItemType Directory -Force $base | Out-Null
 try {

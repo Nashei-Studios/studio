@@ -6,6 +6,7 @@
     "organizacion": "Nashei-Studios",
     "rama_integracion": "develop",
     "ramas_protegidas": ["develop", "main"],
+    "project_estados": { "campo": "Status", "al_tomar": "En curso", "al_soltar": "Listo" },
     "repos": {
       "studio": { "slug": "Nashei-Studios/studio", "rama_base": "develop" },
       "claude-toolkit": { "slug": "Nashei-Studios/claude-toolkit", "rama_base": "develop" },
