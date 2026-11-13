@@ -23,7 +23,7 @@ Cada fila es PASA, FALLA o NO APLICA. Una que no se pudo correr es FALLA, no PAS
 | 11 | Studio abre el place en Team Create | En Studio: Archivo, Abrir desde Roblox, grupo | Ves el place y a quien esté conectado |
 | 12 | Notion | Abrir "Centro del estudio" en el workspace | Ves las bases Juegos y Referentes |
 | 13 | Drive | Abrir la carpeta compartida del estudio | Ves `00-empieza-aqui` y `10-kits` |
-| 14 | Skills compartidas | `gh repo clone Nashei-Studios/claude-toolkit` | Existe `skills/grill-de-juego/SKILL.md` |
+| 14 | Skills compartidas | `gh repo clone Nashei-Studios/claude-toolkit` | Existen `skills/grill-de-juego/SKILL.md` y `skills/reunion/SKILL.md` |
 | 15 | Leíste las reglas | `CONTEXT.md` y `docs/flujo-de-trabajo.md` de `studio` | Puedes decir en una frase a qué rama van las PR (a `develop`) |
 | 16 | Biblioteca de kits en tu equipo | `rclone lsf nashei:` y luego `pwsh studio/tools/kits.ps1 status -Path <tu carpeta de kits>` ([guía](drive.md)) | Lista las carpetas del Drive y el estado de cada paquete |
 | 17 | Ves los legacy | `gh repo list Nashei-Studios --topic legacy` | Lista `legacy-drain-the-sea`, `legacy-grassgame` y `legacy-bowl-brawl` |
