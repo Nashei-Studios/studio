@@ -170,6 +170,20 @@ Lee `docs/game/beta-testing.md` del repo del juego. Las sesiones de tu persona s
 - Las reuniones se graban en `15-reuniones/` del Drive y el acta va a la base Reuniones de Notion.
 - La comunidad del estudio es https://www.roblox.com/communities/405835365. Los juegos se publican en privado bajo el grupo y solo pasan a público con la versión mayor.
 
+## Que tu agente trabaje solo
+
+Tu agente mira el tablero y los issues, toma trabajo de tu área y te reporta. Se configura una vez en `~/Nashei/puesto.json`, junto a las rutas:
+
+```json
+{ "areas": ["area:arte"], "modo": "preguntar", "wip": 1 }
+```
+
+- `areas`: etiquetas `area:código`, `area:ui`, `area:arte`, `area:economía`, `area:audio`, `area:crecimiento`, `area:infra`.
+- `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto) o `autonomo` (lo toma solo).
+- `wip`: cuántos issues a la vez; por defecto 1.
+
+`pwsh tools/puesto.ps1 check` marca PERSONA si falta algo. El protocolo completo está en `AGENTS.md` y la decisión en `docs/adr/0003-agentes-que-toman-trabajo-solos.md`.
+
 ## Volver a correrlo y ponerse al día
 
 Cuando cambia algo del estudio, por ejemplo una herramienta, una skill o un molde nuevo, tu persona solo pega: "Ponte al día con Nashei". Entonces el agente:

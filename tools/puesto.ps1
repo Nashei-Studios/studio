@@ -13,6 +13,10 @@
 
   Someone whose repos or library already live elsewhere writes <Base>/puesto.json once:
     { "repos": ["D:/code/nashei", "D:/code/roblox"], "biblioteca": { "10-kits": "D:/Roblox/kits" } }
+  The agent works on its own from the board and the issues (ADR 0003). It needs, in the same file:
+    "areas": ["area:arte"]       issue labels it may take (area:código, area:ui, area:arte, area:economía, ...)
+    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it
+    "wip":   1                   issues in progress at once (default 1)
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
 
@@ -40,6 +44,7 @@ param(
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
@@ -196,7 +201,7 @@ foreach ($root in $Repos) {
         if ("$url" -match "[:/]$([regex]::Escape($Org))/(.+?)(\.git)?/?$" -and -not $clones.ContainsKey($Matches[1])) { $clones[$Matches[1]] = $dir.FullName }
     }
 }
-$missing = @(); $noHooks = @()
+$missing = @(); $noHooks = @(); $loopRows = @()
 foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
@@ -208,9 +213,12 @@ foreach ($repo in @($list)) {
         if ($doInstall) { & git -C $dir config core.hooksPath .githooks }
         if ((& git -C $dir config core.hooksPath) -ne '.githooks') { $noHooks += $repo.name }
     }
+    # Every clone with an AGENTS.md is a place where the agent works: it must carry the board hooks.
+    if (Test-Path -LiteralPath (Join-Path $dir 'AGENTS.md')) { $loopRows += Test-AgentLoopClone -RepoPath $dir -Name $repo.name }
 }
 if ($login) {
     Add-Result 'clones' ($missing.Count ? 'FALLA' : 'PASA') "Clones en $($Repos -join ', ')" ($missing -join ', ')
+    foreach ($row in $loopRows) { Add-Result $row.id $row.state $row.what $row.detail }
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
 }
 
@@ -297,6 +305,10 @@ if ($robloxUserId -and $null -eq $LlavesSimuladas) {
 }
 if ($inCommunity) { Add-Result 'comunidad' 'PASA' "Miembro de la comunidad de Roblox $communityId" }
 else { Add-Result 'comunidad' 'PERSONA' "Miembro de la comunidad de Roblox $communityId" "unirse en $communityUrl y pedir el rol a un admin (para que el chequeo automático funcione, escribe robloxUserId en puesto.json)" }
+
+# The agent's own configuration: areas, modo and wip in puesto.json (ADR 0003).
+$loop = Test-AgentLoopConfig -Base $Base
+Add-Result $loop.id $loop.state $loop.what $loop.detail
 
 # ---- Report ----
 if ($Json) { [pscustomobject]@{ os = $os; perfil = $Perfil; base = $Base; login = $login; results = $results } | ConvertTo-Json -Depth 4 }

@@ -73,6 +73,11 @@ try {
     Assert ($null -ne $parsed -and $parsed.results.Count -ge 8) 'puesto check returns its report as JSON'
     Assert ($parsed.os -in 'windows', 'macos', 'linux') "puesto detects the system ($($parsed.os))"
 
+    # 4b. The agent loop: the config row exists, and the pure tests pass on this system.
+    Assert (@($parsed.results | Where-Object { $_.id -eq 'agente-config' }).Count -eq 1) 'puesto check reports the agent configuration'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'agent-loop.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'agent-loop unit tests pass'
+
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results
     $all = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas 'ROBLOX_API_KEY,ROBLOX_MONETIZATION_API_KEY' | Out-String | ConvertFrom-Json).results
