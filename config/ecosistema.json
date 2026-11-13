@@ -1,7 +1,7 @@
 {
   "$schema": "./ecosistema.schema.json",
   "version": 1,
-  "actualizado": "2026-11-12",
+  "actualizado": "2026-11-13",
   "github": {
     "organizacion": "Nashei-Studios",
     "repos": {
@@ -63,6 +63,124 @@
     }
   },
   "roblox": { "grupo_id": 405835365 },
+  "personas": {
+    "victor": {
+      "login": "vruizz22",
+      "rol": "Scripting, sistemas, rendimiento y tests",
+      "estado": "definido",
+      "areas": [
+        "código",
+        "infra"
+      ],
+      "foco": [
+        "scripting",
+        "sistemas",
+        "rendimiento",
+        "tests"
+      ]
+    },
+    "leon": {
+      "login": "leonaranguiz2012-a11y",
+      "rol": "Builder, modelado, mapas, niveles y arte",
+      "estado": "definido",
+      "areas": [
+        "arte"
+      ],
+      "foco": [
+        "builder",
+        "modelado",
+        "mapas",
+        "niveles",
+        "arte"
+      ]
+    },
+    "nande": {
+      "login": "Nandeken",
+      "rol": "por definir",
+      "estado": "por-definir",
+      "areas": [],
+      "foco": []
+    }
+  },
+  "planificacion": {
+    "areas": [
+      "código",
+      "ui",
+      "arte",
+      "economía",
+      "audio",
+      "crecimiento",
+      "infra"
+    ],
+    "ejes_globales": [
+      "monetización",
+      "retención",
+      "ftue",
+      "rendimiento",
+      "crecimiento"
+    ],
+    "tope_issues_por_lote": 40,
+    "tope_tareas_detalladas": 25,
+    "tope_sub_issues_por_padre": 15,
+    "preguntas_por_responsable": [
+      3,
+      7
+    ],
+    "preguntas_globales_minimas": 1,
+    "borrador": {
+      "ruta": "docs/planning/ola-{n}.md",
+      "rama": "planning/ola-{n}"
+    },
+    "milestone_ola": "Ola {n}",
+    "marcador_pregunta": "nashei-plan",
+    "etiqueta_pruebas": "hold",
+    "prefijo_pruebas": "PRUEBA",
+    "marca_pregunta_prueba": "[prueba]",
+    "campos": {
+      "etapa": {
+        "campo": "Etapa",
+        "tipo": "select",
+        "opciones": [
+          "Prototipo",
+          "Lanzamiento suave",
+          "Escala"
+        ],
+        "nota": "Opciones tomadas de docs/roadmap.md de la plantilla (R2, R3 y después); se confirman en la primera ola."
+      },
+      "area": {
+        "campo": "Carril",
+        "tipo": "select",
+        "nota": "Es el campo Área: en los Project ya plantados se llama Carril y sus opciones son las area:* de planificacion.areas."
+      },
+      "prioridad": {
+        "campo": "Prioridad",
+        "tipo": "select",
+        "opciones": [
+          "P0",
+          "P1",
+          "P2"
+        ]
+      },
+      "tamano": {
+        "campo": "Tamaño",
+        "tipo": "select",
+        "opciones": [
+          "S",
+          "M",
+          "L"
+        ]
+      },
+      "iteracion": {
+        "campo": "Iteración",
+        "tipo": "iteration"
+      },
+      "responsable": {
+        "campo": "Assignees",
+        "tipo": "builtin",
+        "nota": "Campo Responsable: es el asignado nativo de GitHub; el login sale de personas."
+      }
+    }
+  },
   "transcripcion": {
     "motor": "whisper-cli",
     "modelo": "~/Nashei/models/whisper/ggml-small.bin",

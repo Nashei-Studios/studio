@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validate, loadConfig, getPath, diffDrive, diffDriveRoot, diffNotion } from "./ecosistema.mjs";
+import { validate, loadConfig, getPath, checkInvariantes, responsables, checkLote, diffDrive, diffDriveRoot, diffNotion } from "./ecosistema.mjs";
 import { readFileSync } from "node:fs";
 
 const schema = JSON.parse(readFileSync(new URL("../config/ecosistema.schema.json", import.meta.url), "utf8"));
@@ -57,4 +57,44 @@ test("diffDriveRoot flags an unreachable root, a wrong url and a root without th
   const bad = structuredClone(config);
   bad.drive.raiz.url = "https://drive.google.com/drive/folders/otro-id-distinto";
   assert.equal(diffDriveRoot(bad, { ok: true, names: [first] })[0].kind, "changed");
+});
+
+test("personas and planning caps pass the cross-checks", () => {
+  assert.deepEqual(checkInvariantes(loadConfig()), []);
+});
+
+test("invariants reject a duplicated login, an unknown area and a role-less person that owns areas", () => {
+  const bad = structuredClone(loadConfig());
+  const keys = Object.keys(bad.personas);
+  bad.personas[keys[0]].areas.push("inexistente");
+  bad.personas[keys[1]].login = bad.personas[keys[0]].login;
+  const undefinedKey = keys.find((k) => bad.personas[k].estado === "por-definir");
+  bad.personas[undefinedKey].areas = ["ui"];
+  const errors = checkInvariantes(bad).join(" | ");
+  assert.match(errors, /login repetido/);
+  assert.match(errors, /inexistente/);
+  assert.match(errors, /por-definir/);
+});
+
+test("responsables never assumes an owner for an uncovered area", () => {
+  const config = loadConfig();
+  const r = responsables(config, ["arte", "código", "audio"]);
+  assert.deepEqual(r.sinResponsable, ["audio"]);
+  assert.equal(r.cruzaAreas, true);
+  assert.equal(r.preguntar.length, 2);
+  const undefinedLogins = Object.values(config.personas).filter((p) => p.estado === "por-definir").map((p) => p.login);
+  for (const login of undefinedLogins) assert.ok(!r.preguntar.includes(login));
+});
+
+test("checkLote enforces the batch, detailed-task and sub-issue caps", () => {
+  const config = loadConfig();
+  const plan = config.planificacion;
+  const ok = Array.from({ length: plan.tope_tareas_detalladas }, (_, i) => ({ id: `L-${i}`, nivel: "tarea", padre: `H-${i % 5}` }));
+  assert.deepEqual(checkLote(config, ok), []);
+  const tooMany = [...ok, { id: "L-x", nivel: "tarea", padre: "H-0" }];
+  assert.match(checkLote(config, tooMany).join(" | "), /tareas detalladas/);
+  const fat = Array.from({ length: plan.tope_sub_issues_por_padre + 1 }, (_, i) => ({ id: `S-${i}`, nivel: "historia", padre: "E-1" }));
+  assert.match(checkLote(config, fat).join(" | "), /E-1 tiene/);
+  const huge = Array.from({ length: plan.tope_issues_por_lote + 1 }, (_, i) => ({ id: `E-${i}`, nivel: "epica" }));
+  assert.match(checkLote(config, huge).join(" | "), /tope es/);
 });
