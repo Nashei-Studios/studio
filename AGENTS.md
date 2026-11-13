@@ -35,3 +35,5 @@ El tablero sigue el modelo de `azizu06/hackathon-agent-board`: un issue fijado, 
 ## Arte y trabajo sin código
 
 Todo trabajo, con o sin código (modelado, texturas, concept, sonido, importar a Studio), se avisa en el tablero con su issue antes de empezar. Protocolo, zonas compartidas y entrega de un asset: [docs/flujo-arte-y-avisos.md](docs/flujo-arte-y-avisos.md).
+
+La place del grupo se edita en vivo con Team Create; el código va por ramas y entra con Rojo desde una sola computadora. Nunca conectes Rojo a la place del grupo ni edites scripts en Studio: [docs/en-vivo-y-ramas.md](docs/en-vivo-y-ramas.md).
