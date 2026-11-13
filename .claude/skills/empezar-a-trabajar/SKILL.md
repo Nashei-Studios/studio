@@ -36,6 +36,17 @@ pwsh tools/work.ps1 mine
 
 Muéstrale sus tareas en lenguaje simple. Cola vacía es normal. Con `modo` `preguntar` o `estricto`, propón el primer issue y espera su sí; con `autonomo`, tómalo.
 
+## 3b. Investigar antes de construir (todo issue, arte o código)
+
+Nada se construye "a lo loco". Al tomar un issue, antes del primer cambio:
+
+1. **Referentes.** Busca cómo lo resuelven juegos que ya funcionan: notas del vault (`roblox-vault/research/`), gameplays en YouTube de la mecánica concreta (skill `aprender-de-video` o el equivalente de tu agente), y la matriz `docs/referent-features-matrix.md` del repo del juego. Nunca jugándolos por el MCP de escritorio.
+2. **Lo que ya existe.** Kits del vault (`roblox-vault/kits/`), módulos de la plantilla, plugins instalados, repos open source con licencia compatible. Si hay un binario o kit que hay que entender por dentro, úsalo con `rea` (ingeniería inversa, solo herramientas y builds propias o con licencia).
+3. **Compara y decide.** Dos alternativas reales como mínimo, con qué se pierde en cada una.
+4. **Deja constancia** en el issue, como comentario con el encabezado `## Investigación`: fuentes con enlace (comprobado, nunca de memoria), qué se eligió y por qué. Comprobación: el comentario existe antes de la primera PR del issue; el revisor lo pide si falta.
+
+Si el issue ya trae una sección `## Investigación` con pistas, esas son el punto de partida, no el techo. Investigación grande (un frente entero del juego) va con la skill `roblox-analisis-por-frentes` si el agente la tiene; si no, el mismo método en pequeño.
+
 ## 4. Arte, mapa, UI a mano, luces o audio
 
 1. Abre la place compartida en Studio (ids en `roblox.places`). Comprobación: el panel de colaboradores en vivo la muestra.
