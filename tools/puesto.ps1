@@ -40,17 +40,20 @@ param(
     # Runs only the Drive step (remote, library, Whisper model): no tool installs, no clones. Used by the smoke test.
     [switch]$SoloDrive,
     # Test hook: comma-separated names to treat as present ('ninguna' = none) instead of the real environment.
-    [string]$LlavesSimuladas = $null,
+    # Only active when the parameter is passed: an unbound [string] is '' (never $null) in PowerShell.
+    [string]$LlavesSimuladas,
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
+. (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
 $results = [System.Collections.Generic.List[object]]::new()
 $doInstall = $Action -eq 'install' -and -not $SoloDrive
+$keysSimulated = $PSBoundParameters.ContainsKey('LlavesSimuladas')
 
 # Everything about the Drive (remote name, root id, link, Whisper model) comes from the ecosystem config, never from this script.
 $ecosystem = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../config/ecosistema.json') -Raw | ConvertFrom-Json
@@ -201,7 +204,8 @@ foreach ($root in $Repos) {
         if ("$url" -match "[:/]$([regex]::Escape($Org))/(.+?)(\.git)?/?$" -and -not $clones.ContainsKey($Matches[1])) { $clones[$Matches[1]] = $dir.FullName }
     }
 }
-$missing = @(); $noHooks = @(); $loopRows = @()
+
+$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @()
 foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
@@ -209,6 +213,8 @@ foreach ($repo in @($list)) {
         if ($doInstall) { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
+    $why = Sync-CloneBranch -Dir $dir -Name $repo.name -Ecosystem $ecosystem -Org $Org -Install:$doInstall
+    if ($why) { $branchIssues += $why }
     if (Test-Path -LiteralPath (Join-Path $dir '.githooks')) {
         if ($doInstall) { & git -C $dir config core.hooksPath .githooks }
         if ((& git -C $dir config core.hooksPath) -ne '.githooks') { $noHooks += $repo.name }
@@ -218,6 +224,7 @@ foreach ($repo in @($list)) {
 }
 if ($login) {
     Add-Result 'clones' ($missing.Count ? 'FALLA' : 'PASA') "Clones en $($Repos -join ', ')" ($missing -join ', ')
+    Add-Result 'ramas' ($branchIssues.Count ? 'PERSONA' : 'PASA') 'Clones en la rama de integración' ($branchIssues -join '; ')
     foreach ($row in $loopRows) { Add-Result $row.id $row.state $row.what $row.detail }
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
 }
@@ -281,14 +288,20 @@ if (Test-Cmd claude) {
     }
 } else { Add-Result 'mcp' 'NO APLICA' 'Conexiones MCP' 'no hay Claude Code en este equipo; tu agente usa su propio modo de conectarse' }
 
+# Informational, never blocks: the Blender MCP warns about protocol 15 and expects 16 when the addon is stale.
+if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
+    Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
+}
+
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
 $communityId = 405835365
 $communityUrl = "https://www.roblox.com/communities/$communityId"
 $keysFile = Join-Path $HOME '.config/nashei/claves.env'
 function Test-KeyPresent { param([string]$Name)
-    if ($PSBoundParameters.ContainsKey('Name') -and $null -ne $script:LlavesSimuladas) { return ($Name -in ($script:LlavesSimuladas -split ',')) }
-    if ($IsWindows) { return -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name, 'User')) }
+    if ($script:keysSimulated) { return ($Name -in ($script:LlavesSimuladas -split ',')) }
+    # The current process environment counts on every system (a variable exported for this session is present).
     if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name))) { return $true }
+    if ($IsWindows) { return -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name, 'User')) }
     # Only the line shape NAME=<something> is tested; the matched text is discarded.
     return (Test-Path -LiteralPath $keysFile) -and [bool](Select-String -LiteralPath $keysFile -Pattern "^(export\s+)?$Name=.+" -Quiet) }
 foreach ($key in 'ROBLOX_API_KEY', 'ROBLOX_MONETIZATION_API_KEY') {
@@ -297,7 +310,7 @@ foreach ($key in 'ROBLOX_API_KEY', 'ROBLOX_MONETIZATION_API_KEY') {
 
 $robloxUserId = $config.robloxUserId
 $inCommunity = $null
-if ($robloxUserId -and $null -eq $LlavesSimuladas) {
+if ($robloxUserId -and -not $keysSimulated) {
     try {
         $roles = Invoke-RestMethod -Uri "https://groups.roblox.com/v2/users/$robloxUserId/groups/roles" -TimeoutSec 15
         $inCommunity = [bool](@($roles.data | Where-Object { $_.group.id -eq $communityId }).Count)

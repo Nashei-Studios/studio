@@ -24,7 +24,7 @@ Dueño de todo el repo: `@vruizz22`. Cualquiera propone por PR.
 El tablero sigue el modelo de `azizu06/hackathon-agent-board`: un issue fijado, cada agente publica y espera su aviso. Encima va una cola de trabajo.
 
 - Tu configuración está en `~/Nashei/puesto.json`: `areas` (etiquetas `area:*`), `modo` (`preguntar` o `autonomo`, por defecto `preguntar`) y `wip` (por defecto 1). `pwsh tools/puesto.ps1 check` la verifica.
-- Al iniciar la sesión el hook muestra lo no leído del tablero y tu cola: issues asignados a tu login, o `ready-for-agent` de tus áreas, sin asignar y sin `hold`. Comandos: `pwsh tools/work.ps1 list|mine|claim N|release N`.
+- Al iniciar la sesión el hook muestra lo no leído del tablero y tu cola: issues asignados a tu login, o `ready-for-agent` de tus áreas, sin asignar y sin `hold`. Comandos: `pwsh tools/work.ps1 list|mine|claim N|release N`. Para el arte también sirve `gh issue list --repo Nashei-Studios/drain-for-loot -l area:arte`. Una cola vacía es normal: no hay tarea libre ahora, no es un error.
 - `modo=autonomo`: toma el primero con `claim N`. `modo=preguntar`: propónselo a tu persona y espera un sí.
 - Tomar es: `claim N` (asigna, comenta el marcador y verifica; si otro reclamó antes, el comando sale con 3 y tú sueltas) → rama y worktree propios → PR a `develop` con `Closes #N` → mensaje en el tablero → el siguiente mientras haya cupo de `wip`.
 - Un reclamo con más de 24 h sin PR ni actividad está abandonado: puedes retomarlo y avisas en el tablero.

@@ -10,6 +10,7 @@
       "required": ["organizacion", "repos"],
       "properties": {
         "organizacion": { "type": "string", "minLength": 1 },
+        "rama_integracion": { "type": "string", "minLength": 1, "description": "Gitflow integration branch for repos without their own rama_base." },
         "repos": {
           "type": "object",
           "minProperties": 1,
