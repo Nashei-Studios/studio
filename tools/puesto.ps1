@@ -8,6 +8,7 @@
     install  installs what is missing with the system package manager, clones the repos, sets the
              git hooks, registers the studio's Claude Code hooks at user level (tools/board-hooks) and
              pulls the Drive library; then runs check.
+    uninstall-hooks  removes only the studio's entries from the user's Claude Code settings.json.
 
   A step that needs the person (a browser login, an invitation) is never automated: it is printed
   as PERSONA with the exact command to run.
@@ -17,7 +18,8 @@
   The agent works on its own from the board and the issues (ADR 0003). It needs, in the same file:
     "areas": ["area:arte"]       issue labels it may take (area:código, area:ui, area:arte, area:economía, ...)
     "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it;
-                                 estricto = like preguntar, and an MCP edit to a group place is blocked without a taken issue
+                                 estricto = like preguntar. With autonomo and estricto an MCP edit to a group place is
+                                 blocked without a started issue; with preguntar the person is asked
     "wip":   1                   issues in progress at once (default 1)
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
@@ -26,10 +28,11 @@
   pwsh tools/puesto.ps1 install
   pwsh tools/puesto.ps1 check -Perfil arte
   pwsh tools/puesto.ps1 check -Json
+  pwsh tools/puesto.ps1 uninstall-hooks
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0)][ValidateSet('check', 'install')][string]$Action = 'check',
+    [Parameter(Position = 0)][ValidateSet('check', 'install', 'uninstall-hooks')][string]$Action = 'check',
     # arte: models, map, ideas, tests. codigo: the game toolchain too. todo: both.
     [ValidateSet('arte', 'codigo', 'todo')][string]$Perfil = 'todo',
     # Where clones and the library live. Pick once and keep it.
@@ -51,6 +54,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 . (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+if ($Action -eq 'uninstall-hooks') {
+    $why = Uninstall-UserHooks
+    if ($why) { "PERSONA   Hooks del estudio a nivel usuario: $why"; exit 1 }
+    "PASA      Hooks del estudio quitados de $(Get-ClaudeSettingsPath) (el resto del archivo quedó igual)"
+    exit 0
+}
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
@@ -302,10 +311,10 @@ if (Test-Cmd claude) {
     $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
     $settingsPath = Get-ClaudeSettingsPath
     $why = ''
-    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath }
+    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo }
     elseif ($doInstall) { $why = 'el clon de studio no trae tools/board-hooks/board-hook.ps1: actualízalo y vuelve a correr install' }
     $missingHooks = @()
-    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript) }
+    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo) }
     catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
     $hooksOk = -not $why -and -not $missingHooks.Count
     $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")

@@ -15,13 +15,17 @@ $script:StudioReadOnly = @(
     'http_get', 'start_stop_play', 'character_navigation', 'user_keyboard_input', 'user_mouse_input', 'submit_feedback',
     'create_skill', 'edit_skill', 'subagent')
 $script:DriveMcpWrites = @('create_file', 'update_file', 'copy_file', 'trash_file', 'share_file')
-$script:LockModes = @{ preguntar = 'ask'; autonomo = 'ask'; estricto = 'deny' }
+# preguntar warns through the person's permission prompt; autonomo and estricto block (decided by Victor in #74).
+$script:LockModes = @{ preguntar = 'ask'; autonomo = 'deny'; estricto = 'deny' }
+$script:StrictModes = @('autonomo', 'estricto')
+$script:ActiveTtlHours = 24
 
 function Get-StudioToolName { param([string]$ToolName)
-    # mcp__Roblox_Studio__multi_edit -> multi_edit; $null when the tool is not from a Roblox Studio server.
+    # mcp__Roblox_Studio__multi_edit -> multi_edit; $null when the tool is not from the Roblox Studio server
+    # (another server that only has "roblox" in its name, such as a vault, does not count).
     if ($ToolName -notmatch '^mcp__(?<server>.+?)__(?<tool>[^_].*)$') { return $null }
     $server, $tool = $Matches.server, $Matches.tool
-    if ($server -match '(?i)roblox') { return $tool }
+    if ($server -match '(?i)^roblox[_ -]?studio$') { return $tool }
     $null }
 
 function Test-StudioEdit { param([string]$ToolName, $ToolInput)
@@ -34,6 +38,8 @@ function Test-StudioEdit { param([string]$ToolName, $ToolInput)
 function ConvertTo-SafeText { param([string]$Text, [int]$Max = 160)
     if (-not $Text) { return '' }
     $t = $Text -replace '[\x00-\x1f\x7f]', ' '
+    # Credentials inside a URL (https://user:pass@host or https://token@host) never reach the board.
+    $t = $t -replace '(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@', '$1'
     # Personal paths: the home folder in any spelling, then any other user folder.
     $homes = @($HOME, ($HOME -replace '\\', '/')) | Where-Object { $_ } | Sort-Object Length -Descending | Select-Object -Unique
     foreach ($h in $homes) { $t = $t -replace [regex]::Escape($h), '~' }
@@ -140,9 +146,18 @@ function Get-ToolTouch { param($HookInput, [hashtable]$StudioMap = @{}, [string]
     }
     if ($name -in 'Bash', 'PowerShell') {
         $cmd = "$($in.command)"
-        if ($cmd -match '(?i)\bgit\b(\s+-C\s+\S+)?\s+push\b(?<rest>[^;&|\n]*)') {
-            $refs = @($Matches.rest -split '\s+' | Where-Object { $_ -and $_ -notmatch '^-' }) | Select-Object -Last 2
-            return [pscustomobject]@{ kind = 'push'; tool = 'git push'; place = ''; placeName = ''; detail = ConvertTo-SafeText ("git push " + ($refs -join ' ')).Trim() }
+        if ($cmd -match '(?i)\bgit\b(\s+-C\s+(?<dir>"[^"]+"|''[^'']+''|\S+))?\s+push\b(?<rest>[^;&|\n]*)') {
+            $pushDir = "$($Matches.dir)".Trim('"', "'")
+            $words = @($Matches.rest -split '\s+' | Where-Object { $_ -and $_ -notmatch '^-' })
+            # Where the push runs: git -C <dir>, else the last `cd <dir>` before it, else the session folder.
+            if (-not $pushDir) {
+                $before = $cmd.Substring(0, $cmd.IndexOf($Matches[0]))
+                $cds = [regex]::Matches($before, '(?:^|[;&|]\s*)cd\s+(?<d>"[^"]+"|''[^'']+''|[^\s;&|]+)')
+                $pushDir = $cds.Count ? $cds[$cds.Count - 1].Groups['d'].Value.Trim('"', "'") : "$($HookInput.cwd)"
+            }
+            return [pscustomobject]@{ kind = 'push'; tool = 'git push'; place = ''; placeName = ''
+                detail = ConvertTo-SafeText ("git push " + (($words | Select-Object -Last 2) -join ' ')).Trim()
+                dir = $pushDir; remote = $words.Count ? $words[0] : 'origin' }
         }
         if ($cmd -match '(?i)kits\.ps1[''"]?\s+push\b(?<rest>[^;&|\n]*)') {
             $rest = $Matches.rest
@@ -156,6 +171,14 @@ function Get-ToolTouch { param($HookInput, [hashtable]$StudioMap = @{}, [string]
         }
     }
     $null }
+
+function Test-OrgRemote { param([string]$Dir, [string]$Remote, [string]$Org)
+    <# Is this push going to a repo of the organization? A remote given as a URL is read as is; a remote name is
+       resolved in $Dir. Anything that cannot be resolved is not the studio's: personal repos never block a turn. #>
+    $url = if ($Remote -match '://|^[^/\s]+@[^/\s]+:') { $Remote }
+    elseif ($Dir -and (Test-Path -LiteralPath $Dir)) { (& git -C $Dir remote get-url $Remote 2>$null | Out-String).Trim() }
+    else { '' }
+    [bool]($url -match "(?i)github\.com[:/]+$([regex]::Escape($Org))/") }
 
 function Format-TouchList { param($Entries, [int]$Max = 900)
     <# The "Toca:" part of a notice: one group per place, then pushes and Drive. Already safe text. #>
@@ -175,9 +198,16 @@ function Format-TouchList { param($Entries, [int]$Max = 900)
     $text }
 
 function Get-LockDecision { param([string]$Modo, $Active, [bool]$GroupPlace)
-    <# allow | ask | deny for an MCP edit. Only the group's places are locked; an active issue opens them. #>
+    <# allow | ask | deny for an MCP edit. Only the group's places are locked; an active issue opens them.
+       An unknown modo asks: the person decides rather than the agent being stuck. #>
     if (-not $GroupPlace -or $Active) { return 'allow' }
     $script:LockModes[$Modo] ?? 'ask' }
+
+function Test-StrictMode { param([string]$Modo) $Modo -in $script:StrictModes }
+
+function ConvertTo-NoMention { param([string]$Text)
+    # @login in a notice would notify that person; it stays readable as code unless a mention is wanted.
+    $Text -replace '(?<![\w`])@([A-Za-z0-9-]+)', '`@$1`' }
 
 function Get-AgentLabel { param($Ecosystem, [string]$Login, [string]$Agent = 'Claude')
     # "[Leon's Claude]": the person's name from config/ecosistema.json, else the login.
@@ -205,26 +235,41 @@ function Write-JsonFile { param([string]$Path, $Value)
     $Value | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $tmp -Encoding utf8
     Move-Item -LiteralPath $tmp -Destination $Path -Force }
 
-function Add-TouchEntry { param([string]$StateDir, $Entry)
-    $line = [ordered]@{ at = [datetime]::UtcNow.ToString('o'); kind = $Entry.kind; tool = $Entry.tool; place = $Entry.place; placeName = $Entry.placeName; detail = $Entry.detail }
+function Add-TouchEntry { param([string]$StateDir, $Entry, [string]$Session = '')
+    # The Claude Code session is kept with each entry: two sessions never answer for each other's changes.
+    $line = [ordered]@{ id = [guid]::NewGuid().ToString('N'); at = [datetime]::UtcNow.ToString('o'); session = $Session
+        kind = $Entry.kind; tool = $Entry.tool; place = $Entry.place; placeName = $Entry.placeName; detail = $Entry.detail }
     Add-Content -LiteralPath (Join-Path $StateDir 'registro.jsonl') -Value ($line | ConvertTo-Json -Compress) -Encoding utf8 }
 
-function Get-TouchEntries { param([string]$StateDir)
+function Get-TouchEntries { param([string]$StateDir, [string]$Session = '')
+    <# All entries, or only one session's when -Session is given. #>
     $file = Join-Path $StateDir 'registro.jsonl'
     if (-not (Test-Path -LiteralPath $file)) { return @() }
-    @(Get-Content -LiteralPath $file -Encoding utf8 | Where-Object { $_.Trim() } | ForEach-Object { try { $_ | ConvertFrom-Json } catch { } }) }
+    @(Get-Content -LiteralPath $file -Encoding utf8 | Where-Object { $_.Trim() } | ForEach-Object { try { $_ | ConvertFrom-Json } catch { } } |
+        Where-Object { -not $Session -or "$($_.session)" -eq $Session }) }
 
-function Clear-TouchEntries { param([string]$StateDir, [int]$Count = -1)
-    <# Drops the first $Count entries (the ones just announced); a hook may have added more meanwhile. #>
+function Clear-TouchEntries { param([string]$StateDir, $Entries)
+    <# Drops the entries just announced, by id; whatever a hook added meanwhile stays. #>
     $file = Join-Path $StateDir 'registro.jsonl'
-    if ($Count -lt 0 -or -not (Test-Path -LiteralPath $file)) { Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue; return }
-    $rest = @(Get-Content -LiteralPath $file -Encoding utf8 | Where-Object { $_.Trim() } | Select-Object -Skip $Count)
+    if (-not (Test-Path -LiteralPath $file)) { return }
+    $gone = @($Entries | ForEach-Object { "$($_.id)" })
+    $rest = @(Get-Content -LiteralPath $file -Encoding utf8 | Where-Object { $_.Trim() } | Where-Object {
+            $e = try { $_ | ConvertFrom-Json } catch { $null }
+            $e -and "$($e.id)" -notin $gone })
     if ($rest.Count) { Set-Content -LiteralPath $file -Value $rest -Encoding utf8 } else { Remove-Item -LiteralPath $file -Force }
 }
 
-function Get-ActiveIssue { param([string]$StateDir) Read-JsonFile (Join-Path $StateDir 'activo.json') }
-function Set-ActiveIssue { param([string]$StateDir, [string]$Repo, [int]$Number, [string]$Title)
-    Write-JsonFile (Join-Path $StateDir 'activo.json') ([ordered]@{ repo = $Repo; number = $Number; title = $Title; at = [datetime]::UtcNow.ToString('o') }) }
+function Get-ActiveIssue { param([string]$StateDir, [string]$Session = '', [datetime]$Now = [datetime]::UtcNow)
+    <# The issue started with aviso.ps1 empiezo. It counts for ActiveTtlHours at most and, when -Session is given,
+       only for the session that started or resumed it (the lock always passes the session). #>
+    $a = Read-JsonFile (Join-Path $StateDir 'activo.json')
+    if (-not $a) { return $null }
+    try { $at = ([datetimeoffset]$a.at).UtcDateTime } catch { return $null }
+    if (($Now - $at).TotalHours -gt $script:ActiveTtlHours) { return $null }
+    if ($Session -and "$($a.session)" -ne $Session) { return $null }
+    $a }
+function Set-ActiveIssue { param([string]$StateDir, [string]$Repo, [int]$Number, [string]$Title, [string]$Session = '')
+    Write-JsonFile (Join-Path $StateDir 'activo.json') ([ordered]@{ repo = $Repo; number = $Number; title = $Title; session = $Session; at = [datetime]::UtcNow.ToString('o') }) }
 function Clear-ActiveIssue { param([string]$StateDir) Remove-Item -LiteralPath (Join-Path $StateDir 'activo.json') -Force -ErrorAction SilentlyContinue }
 
 function Get-StudioMap { param([string]$StateDir) (Read-JsonFile (Join-Path $StateDir 'studios.json')) ?? @{} }

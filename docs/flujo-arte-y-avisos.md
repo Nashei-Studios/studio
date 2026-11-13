@@ -123,27 +123,29 @@ Reglas:
 
 ## 6. Lo que hace solo el sistema: hooks de usuario
 
-`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` del clon de `studio`. Corren en cualquier carpeta, en Windows, macOS y Linux, y un `pull` del clon los actualiza. `puesto.ps1 check` dice si están (fila "Hooks del estudio a nivel usuario").
+`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` del clon de `studio`. Corren en cualquier carpeta, en Windows, macOS y Linux, y un `pull` del clon los actualiza. `puesto.ps1 check` dice si están y si calzan con tu `modo` (fila "Hooks del estudio a nivel usuario"); si cambias el `modo`, vuelve a correr `install`. `pwsh tools/puesto.ps1 uninstall-hooks` los quita y deja el resto del archivo como estaba; la primera instalación guarda el original en `settings.json.bak-nashei`.
 
 | Hook | Evento | Qué hace |
 |---|---|---|
-| Tablero | `SessionStart`, `UserPromptSubmit` | Muestra lo no leído del Agent Board y la cola, como dentro de un clon. Dentro de un clon que ya trae sus propios hooks se calla, para no repetir |
-| Registro | `PostToolUse` | Anota cada edición por MCP a una place de Roblox Studio (scripts o instancias, con las rutas que nombra), cada `git push` y cada subida al Drive (`kits.ps1 push`, `rclone` al remoto del estudio, el MCP de Drive) |
-| Aviso al cerrar | `Stop` | Si quedó algo anotado sin avisar, no deja terminar el turno y da el comando del aviso. La segunda vez deja terminar y te avisa a ti |
-| Candado | `PreToolUse` | Una edición por MCP a una place del grupo (`roblox.places` de `config/ecosistema.json`) sin issue empezado: con `modo` `preguntar` o `autonomo` te pide confirmación; con `estricto` la bloquea |
+| Tablero | `SessionStart`, `UserPromptSubmit` | Muestra lo no leído del Agent Board y la cola, como dentro de un clon, y el id de la sesión para los avisos. Dentro de un clon que ya trae sus propios hooks se calla, para no repetir |
+| Registro | `PostToolUse` | Anota, con la sesión, cada edición por MCP a una place de Roblox Studio (scripts o instancias, con las rutas que nombra), cada `git push` a un repo de la organización y cada subida al Drive (`kits.ps1 push`, `rclone` al remoto del estudio, el MCP de Drive). Un push a un repo propio no se anota |
+| Aviso al cerrar | `Stop` | Si esta sesión dejó algo anotado sin avisar, no deja terminar el turno y da el comando del aviso. La segunda vez deja terminar y te avisa a ti. Lo de otra sesión no la frena |
+| Candado | `PreToolUse` | Una edición por MCP a una place del grupo (`roblox.places` de `config/ecosistema.json`) sin issue empezado en esta sesión: con `modo` `preguntar` te pide confirmación; con `autonomo` o `estricto` la bloquea. Si el propio candado falla, con `autonomo` o `estricto` también bloquea |
 
-Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el formato de la sección 1 y la lista de lo tocado:
+Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el formato de la sección 1 y la lista de lo tocado. `-Sesion <id>` (el hook lo imprime y lo pone en sus comandos) limita la lista a esa sesión y le abre el candado solo a ella:
 
-| Comando | Qué publica |
+| Comando | Qué hace |
 |---|---|
-| `aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..."` | `empiezo`, si el issue está abierto y asignado a ti; abre el candado |
-| `aviso.ps1 avance -Que "..."` | `avance` con la lista de lo tocado; vacía la lista |
-| `aviso.ps1 cierro -Que "..." -Pr <url> -Asset <id>` | `cierro` con la lista; vacía la lista y cierra el candado |
-| `aviso.ps1 pendiente` | Nada: muestra el issue activo y lo que falta avisar |
+| `aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..." -Sesion <id>` | Publica `empiezo` si el issue está abierto y asignado a ti, y abre el candado por 24 h |
+| `aviso.ps1 retomo -Sesion <id>` | No publica: el issue empezado en otra sesión (menos de 24 h) abre el candado de esta, si sigue abierto y tuyo |
+| `aviso.ps1 avance -Que "..." -Sesion <id>` | Publica `avance` con la lista de lo tocado y la vacía |
+| `aviso.ps1 cierro -Que "..." -Pr <url> -Asset <id> -Sesion <id>` | Publica `cierro` con la lista, la vacía y cierra el candado |
+| `aviso.ps1 pendiente` | No publica: muestra el issue activo y lo que falta avisar |
 
-- El registro y el issue activo viven en `~/Nashei/estado/`, fuera de los repos. Lo que se publica pasa por un filtro: sin rutas personales (quedan como `~`) y sin nada con forma de token o llave.
+- El registro y el issue activo viven en `~/Nashei/estado/`, fuera de los repos. Lo que se publica pasa por un filtro: sin rutas personales (quedan como `~`), sin credenciales dentro de una URL y sin nada con forma de token o llave. Un `@login` en el texto se escribe como código para no notificar a nadie; `-Mencionar` lo deja como mención, por ejemplo para avisarle a Victor de una zona compartida.
 - La place de un Studio se conoce por `list_roblox_studios`; mientras el agente no la haya llamado, el candado trata ese Studio como del grupo.
 - El candado mira solo las ediciones por MCP. Lo que tu persona hace a mano en Studio no pasa por los hooks y se avisa igual que siempre.
+- Las variables de prueba de `aviso.ps1` (`NASHEI_TABLERO_SIMULADO`, `NASHEI_ISSUE_SIMULADO`) solo valen con `NASHEI_TEST=1` en CI; fuera de eso `aviso.ps1` las rechaza.
 
 ## Qué no hace el agente de arte
 
