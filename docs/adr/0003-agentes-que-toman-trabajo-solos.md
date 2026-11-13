@@ -1,6 +1,6 @@
 # 0003. Agentes que toman trabajo solos: hooks de sesión más espera en segundo plano
 
-- Estado: aceptado 2026-11-13, reversible
+- Estado: aceptado 2026-11-13, reversible; la parte de `wip` la supersede [0005](0005-sin-tope-de-trabajo-en-curso.md)
 - Fecha: 2026-11-13
 - Decide: Victor (encargo)
 - Refs: #54, [azizu06/hackathon-agent-board](https://github.com/azizu06/hackathon-agent-board) (base del tablero)
