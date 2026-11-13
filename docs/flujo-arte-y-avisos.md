@@ -21,7 +21,7 @@ flowchart TD
   B -->|si| D[work.ps1 claim N]
   C --> D
   D -->|exit 3| X[Otro lo tiene: soltar y avisar]
-  D -->|exit 2| Y[WIP lleno o no tomable: decir por que]
+  D -->|exit 2| Y[no tomable o tope wip propio lleno: decir por que]
   D -->|exit 0| E[Aviso: empiezo #N]
   E --> F[Trabajar]
   F --> G[Aviso de avance relevante]
@@ -34,7 +34,7 @@ Pasos, en este orden. Aplican igual a modelado en Blender, texturas, concept, so
 
 1. **Buscar el issue.** `pwsh tools/work.ps1 list` y `mine`; si no está ahí, `gh issue list -R <repo> --label area:arte --search "<tema>"`. Antes de crear otro, revisa que nadie tenga el mismo.
 2. **Si no hay, crearlo antes de empezar.** En el repo del juego con la plantilla de historia o `art-request.yml` ("Pedido de modelo o arte"). Etiquetas: `area:arte`, `owner:leon` y el `tipo:` que corresponda. Después súbelo al Project del juego (Drain for Loot es el Project 2 de la organización): `gh project item-add 2 --owner Nashei-Studios --url <url del issue>`, con `Carril`, `Prioridad` y `Tamaño` llenos. Si algún campo no lo sabes, pregunta a la persona; no lo inventes.
-3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es WIP lleno o issue no tomable. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
+3. **Tomarlo.** `pwsh tools/work.ps1 claim N`. Salida 0 es tuyo; 3 es que otro llegó antes, así que sueltas y lo dices; 2 es issue no tomable o tope `wip` propio lleno. Con `modo=preguntar` primero propones el issue a tu persona y esperas su sí.
 4. **Avisar en el tablero:**
 
    ```
@@ -89,7 +89,7 @@ sequenceDiagram
   A->>J: PR del juego con Closes si corresponde
 ```
 
-1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el [ADR 0002 de art](https://github.com/Nashei-Studios/art/blob/develop/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md) y la [barra de arte](https://github.com/Nashei-Studios/art/blob/develop/docs/barra-de-arte.md).
+1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el ADR 0002 de art (`art/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md`, repo privado) y la barra de arte (`art/docs/barra-de-arte.md`).
 2. **Compuerta en verde.** `pwsh tools/build.ps1 -Asset <slug> -Sources <fuentes>` debe terminar con `GATE True` y código de salida 0. Nunca se baja el presupuesto para que pase.
 3. **PR a `develop` de `art`** con la receta, la ficha y el `.glb`, `Closes #N` del issue de arte o `Refs` si el issue vive en el juego.
 4. **`.blend` al Drive.** `pwsh tools/kits.ps1 push -Path <biblioteca>/50-arte -Folder 50-arte`. **Solo con la aprobación explícita de Leon** para ese paquete; el agente no sube nada por su cuenta. Lo reutilizable como kit va a `10-kits` con su nota en `roblox-vault/kits/`.

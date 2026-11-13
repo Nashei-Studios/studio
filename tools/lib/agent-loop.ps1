@@ -15,7 +15,7 @@ function Get-NasheiBase { if ($env:NASHEI_BASE) { $env:NASHEI_BASE } else { Join
 function Get-PuestoLoopConfig {
     <# Reads areas / modo / wip from <Base>/puesto.json. Never throws: problems come back in .problems. #>
     param([string]$Base = (Get-NasheiBase))
-    $cfg = [ordered]@{ areas = @(); modo = 'preguntar'; wip = 1; problems = @(); file = (Join-Path $Base 'puesto.json') }
+    $cfg = [ordered]@{ areas = @(); modo = 'preguntar'; wip = 0; problems = @(); file = (Join-Path $Base 'puesto.json') }
     if (-not (Test-Path -LiteralPath $cfg.file)) {
         $cfg.problems += "no existe $($cfg.file)"
         return [pscustomobject]$cfg
@@ -35,7 +35,7 @@ function Get-PuestoLoopConfig {
     else { $cfg.problems += 'falta modo (preguntar | autonomo | estricto); se usa preguntar' }
     if ($raw.ContainsKey('wip')) {
         if ($raw.wip -is [ValueType] -and $raw.wip -eq [math]::Floor($raw.wip) -and $raw.wip -ge 1) { $cfg.wip = [int]$raw.wip }
-        else { $cfg.problems += 'wip debe ser un entero >= 1; se usa 1' }
+        else { $cfg.problems += 'wip debe ser un entero >= 1; se ignora (sin tope)' }
     }
     [pscustomobject]$cfg
 }
@@ -82,7 +82,7 @@ function Resolve-Claim {
 function Select-WorkIssues {
     <# Issues this person can work on, best first. ClaimWinner is called lazily, only for free candidates:
        it returns the login that holds the issue or $null. #>
-    param($Issues, [string[]]$Members, [string]$Login, [string[]]$Areas, [int]$Wip = 1,
+    param($Issues, [string[]]$Members, [string]$Login, [string[]]$Areas, [int]$Wip = 0,
         [scriptblock]$ClaimWinner = { param($n) $null }, [switch]$IncludeHold)
     $me = $Login.ToLowerInvariant()
     $memberSet = @($Members | ForEach-Object { $_.ToLowerInvariant() })
@@ -109,7 +109,7 @@ function Select-WorkIssues {
     }
     $sorted = @($rows | Sort-Object @{e = { $_.kind -eq 'mine' ? 0 : 1 } }, due, createdAt, number)
     $taken = @($sorted | Where-Object kind -eq 'mine').Count
-    [pscustomobject]@{ issues = $sorted; taken = $taken; canTake = ($taken -lt $Wip) }
+    [pscustomobject]@{ issues = $sorted; taken = $taken; canTake = ($Wip -lt 1 -or $taken -lt $Wip) }
 }
 
 function Test-AgentLoopClone {
@@ -135,9 +135,9 @@ function Test-AgentLoopConfig {
     param([string]$Base)
     $cfg = Get-PuestoLoopConfig -Base $Base
     if (-not $cfg.problems.Count) {
-        return [pscustomobject]@{ id = 'agente-config'; state = 'PASA'; what = 'puesto.json tiene areas, modo y wip'
-            detail = "modo=$($cfg.modo) wip=$($cfg.wip) areas=$($cfg.areas -join ',')" }
+        return [pscustomobject]@{ id = 'agente-config'; state = 'PASA'; what = 'puesto.json tiene areas y modo (wip es opcional)'
+            detail = "modo=$($cfg.modo) wip=$($cfg.wip -lt 1 ? 'sin tope' : $cfg.wip) areas=$($cfg.areas -join ',')" }
     }
     [pscustomobject]@{ id = 'agente-config'; state = 'PERSONA'; what = 'puesto.json no tiene la configuracion del agente'
-        detail = ($cfg.problems -join '; ') + ". Edita $($cfg.file) y agrega, por ejemplo: `"areas`": [`"area:arte`"], `"modo`": `"preguntar`", `"wip`": 1" }
+        detail = ($cfg.problems -join '; ') + ". Edita $($cfg.file) y agrega, por ejemplo: `"areas`": [`"area:arte`"], `"modo`": `"preguntar`"" }
 }
