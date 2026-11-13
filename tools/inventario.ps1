@@ -14,6 +14,7 @@
 .EXAMPLE
   pwsh tools/inventario.ps1
   pwsh tools/inventario.ps1 -Roots D:\Arte,E:\Proyectos -Con texturas,audio
+  pwsh tools/inventario.ps1 -ConRepos      # also look inside git clones
 #>
 [CmdletBinding()]
 param(
@@ -21,6 +22,8 @@ param(
     [string[]]$Roots = @(),
     # Extra families besides models, Roblox files and 2D sources.
     [ValidateSet('texturas', 'audio')][string[]]$Con = @(),
+    # Git clones are skipped by default: what lives in a repo is already shared through it.
+    [switch]$ConRepos,
     [string]$Remote = 'nashei',
     [string]$Out = (Join-Path $HOME 'Nashei' 'inventario' (Get-Date -Format 'yyyy-MM-dd')),
     # Files smaller than this are noise (thumbnails, caches).
@@ -44,7 +47,8 @@ foreach ($f in $families.Keys) { foreach ($e in $families[$f]) { $familyOf[".$e"
 # Folders that never hold a person's own art: system, caches, dependencies, version control.
 $skip = 'Windows', 'Program Files', 'Program Files (x86)', 'ProgramData', '$Recycle.Bin', 'System Volume Information',
     'AppData', 'Library', 'node_modules', '.git', '.cache', '.venv', 'venv', '__pycache__', 'site-packages',
-    'scoop', '.rustup', '.cargo', '.nuget', 'Steam', 'steamapps', 'Epic Games', 'Riot Games', '.Trash', 'proc', 'sys', 'dev', 'snap'
+    'scoop', '.rustup', '.cargo', '.nuget', 'Steam', 'steamapps', 'Epic Games', 'Riot Games', '.Trash', 'proc', 'sys', 'dev', 'snap',
+    'toolchain', 'Sdk', 'extensions', 'logs', 'Applications', 'usr', 'opt', 'var'
 
 if (-not $Roots.Count) {
     $Roots = @($HOME)
@@ -62,7 +66,10 @@ function Get-ArtFiles { param([string]$Root)
         try {
             foreach ($sub in [IO.Directory]::EnumerateDirectories($dir, '*', $options)) {
                 $name = [IO.Path]::GetFileName($sub)
-                if ($skip -notcontains $name -and -not $name.StartsWith('.')) { $stack.Push($sub) }
+                if ($skip -contains $name -or $name.StartsWith('.')) { continue }
+                # A git clone or worktree: .git is a folder in the first, a file in the second.
+                if (-not $ConRepos -and (Test-Path -LiteralPath (Join-Path $sub '.git'))) { continue }
+                $stack.Push($sub)
             }
             foreach ($file in [IO.Directory]::EnumerateFiles($dir, '*', $options)) {
                 $ext = [IO.Path]::GetExtension($file).ToLowerInvariant()

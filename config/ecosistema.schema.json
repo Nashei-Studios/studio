@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuración del ecosistema de Nashei Studios",
+  "type": "object",
+  "required": ["version", "github", "notion", "drive", "roblox", "personas", "planificacion", "reuniones"],
+  "properties": {
+    "version": { "type": "integer" },
+    "github": {
+      "type": "object",
+      "required": ["organizacion", "repos"],
+      "properties": {
+        "organizacion": { "type": "string", "minLength": 1 },
+        "rama_integracion": { "type": "string", "minLength": 1, "description": "Gitflow integration branch for repos without their own rama_base." },
+        "repos": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["slug", "rama_base"],
+            "properties": {
+              "slug": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+              "rama_base": { "type": "string", "enum": ["develop", "main"] }
+            }
+          }
+        }
+      }
+    },
+    "notion": {
+      "type": "object",
+      "required": ["raiz", "bases"],
+      "properties": {
+        "raiz": {
+          "type": "object",
+          "required": ["nombre", "id"],
+          "properties": {
+            "nombre": { "type": "string" },
+            "id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+          }
+        },
+        "bases": {
+          "type": "object",
+          "required": ["reuniones", "juegos", "tareas", "sesiones_testeo"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["nombre", "database_id", "data_source_id"],
+            "properties": {
+              "nombre": { "type": "string", "minLength": 1 },
+              "alias": { "type": "array", "items": { "type": "string" } },
+              "database_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+              "data_source_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+            }
+          }
+        }
+      }
+    },
+    "drive": {
+      "type": "object",
+      "required": ["remoto", "raiz", "carpetas"],
+      "properties": {
+        "remoto": { "type": "string", "minLength": 1 },
+        "raiz": {
+          "type": "object",
+          "required": ["nombre", "id", "url"],
+          "properties": {
+            "nombre": { "type": "string", "minLength": 1 },
+            "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{10,}$" },
+            "url": { "type": "string", "pattern": "^https://drive[.]google[.]com/drive/folders/[A-Za-z0-9_-]{10,}$" }
+          }
+        },
+        "carpetas": {
+          "type": "object",
+          "required": ["reuniones", "beta_testing"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["nombre", "id"],
+            "properties": { "nombre": { "type": "string", "minLength": 1 }, "id": { "type": "string", "minLength": 10 } }
+          }
+        }
+      }
+    },
+    "roblox": {
+      "type": "object",
+      "required": ["grupo_id"],
+      "properties": { "grupo_id": { "type": "integer" } }
+    },
+    "personas": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["login", "rol", "estado", "areas", "foco"],
+        "properties": {
+          "login": { "type": "string", "pattern": "^[A-Za-z0-9-]+$" },
+          "rol": { "type": "string", "minLength": 1 },
+          "estado": { "type": "string", "enum": ["definido", "por-definir"] },
+          "areas": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "foco": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "planificacion": {
+      "type": "object",
+      "required": ["areas", "ejes_globales", "tope_issues_por_lote", "tope_tareas_detalladas", "tope_sub_issues_por_padre", "preguntas_por_responsable", "preguntas_globales_minimas", "borrador", "milestone_ola", "marcador_pregunta", "etiqueta_pruebas", "prefijo_pruebas", "marca_pregunta_prueba", "campos"],
+      "properties": {
+        "areas": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "ejes_globales": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "tope_issues_por_lote": { "type": "integer" },
+        "tope_tareas_detalladas": { "type": "integer" },
+        "tope_sub_issues_por_padre": { "type": "integer" },
+        "preguntas_por_responsable": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+        "preguntas_globales_minimas": { "type": "integer" },
+        "borrador": {
+          "type": "object",
+          "required": ["ruta", "rama"],
+          "properties": { "ruta": { "type": "string", "pattern": "[{]n[}]" }, "rama": { "type": "string", "pattern": "[{]n[}]" } }
+        },
+        "milestone_ola": { "type": "string", "pattern": "[{]n[}]" },
+        "marcador_pregunta": { "type": "string", "minLength": 1 },
+        "etiqueta_pruebas": { "type": "string", "minLength": 1 },
+        "prefijo_pruebas": { "type": "string", "minLength": 1 },
+        "marca_pregunta_prueba": { "type": "string", "minLength": 1 },
+        "campos": {
+          "type": "object",
+          "required": ["etapa", "area", "prioridad", "tamano", "iteracion", "responsable"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["campo", "tipo"],
+            "properties": {
+              "campo": { "type": "string", "minLength": 1 },
+              "tipo": { "type": "string", "enum": ["select", "iteration", "builtin"] },
+              "opciones": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "nota": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "transcripcion": {
+      "type": "object",
+      "properties": {
+        "motor": { "type": "string" },
+        "modelo": { "type": "string" },
+        "idioma": { "type": "string" },
+        "diarizacion": { "type": "string", "enum": ["ninguna", "estereo", "pyannote"] },
+        "memoria_libre_minima_mb": { "type": "integer" }
+      }
+    },
+    "reuniones": {
+      "type": "object",
+      "required": ["carpeta_prueba", "tipos"],
+      "properties": {
+        "carpeta_prueba": { "type": "string" },
+        "patron_carpeta": { "type": "string" },
+        "rama_acta": { "type": "string" },
+        "etiqueta_abiertos": { "type": "string" },
+        "etiqueta_pruebas": { "type": "string" },
+        "tipos": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["titulo", "duracion_min", "agenda", "salida"],
+            "properties": {
+              "titulo": { "type": "string" },
+              "notion_tipo": { "type": ["string", "null"] },
+              "duracion_min": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+              "agenda": { "type": "string" },
+              "salida": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

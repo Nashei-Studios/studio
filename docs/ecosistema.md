@@ -103,3 +103,7 @@ Lo que **no** se puede garantizar: que alguien con permiso de escritura no empuj
 ### Pasos que solo existen en la interfaz
 
 En cada Project, una vez: columna del tablero por Status (y por Carril en "Por carril"), fechas del roadmap con Inicio y Objetivo, límite de trabajo en "En curso", y los workflows integrados (ítem agregado a Backlog, PR enlazada a En revisión, cerrado a Hecho, auto-archivo, auto-agregar issues del repo).
+
+## Ids y nombres: una sola fuente
+
+Los ids de las bases de Notion, las carpetas de Drive, los repos y el grupo de Roblox viven en [`config/ecosistema.json`](../config/ecosistema.json) y nada más los escribe. `node scripts/ecosistema.mjs validate` lo comprueba contra su schema y `node scripts/ecosistema.mjs discover` los busca de nuevo por nombre y avisa si alguno cambió. Cómo se usa en una reunión: [reuniones.md](reuniones.md).

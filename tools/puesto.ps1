@@ -13,6 +13,10 @@
 
   Someone whose repos or library already live elsewhere writes <Base>/puesto.json once:
     { "repos": ["D:/code/nashei", "D:/code/roblox"], "biblioteca": { "10-kits": "D:/Roblox/kits" } }
+  The agent works on its own from the board and the issues (ADR 0003). It needs, in the same file:
+    "areas": ["area:arte"]       issue labels it may take (area:código, area:ui, area:arte, area:economía, ...)
+    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it
+    "wip":   1                   issues in progress at once (default 1)
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
 
@@ -31,15 +35,29 @@ param(
     [string[]]$Repos = @(),
     [string]$Biblioteca = '',
     [string]$Org = 'Nashei-Studios',
-    [string]$Remote = 'nashei',
+    # Empty = drive.remoto of config/ecosistema.json.
+    [string]$Remote = '',
+    # Runs only the Drive step (remote, library, Whisper model): no tool installs, no clones. Used by the smoke test.
+    [switch]$SoloDrive,
+    # Test hook: comma-separated names to treat as present ('ninguna' = none) instead of the real environment.
+    # Only active when the parameter is passed: an unbound [string] is '' (never $null) in PowerShell.
+    [string]$LlavesSimuladas,
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
+. (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
 $wantCode = $Perfil -in 'codigo', 'todo'
 $results = [System.Collections.Generic.List[object]]::new()
+$doInstall = $Action -eq 'install' -and -not $SoloDrive
+$keysSimulated = $PSBoundParameters.ContainsKey('LlavesSimuladas')
+
+# Everything about the Drive (remote name, root id, link, Whisper model) comes from the ecosystem config, never from this script.
+$ecosystem = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../config/ecosistema.json') -Raw | ConvertFrom-Json
+if (-not $Remote) { $Remote = $ecosystem.drive.remoto }
 
 $config = @{}
 $configFile = Join-Path $Base 'puesto.json'
@@ -58,6 +76,8 @@ function Invoke-Quiet { param([string]$Exe, [string[]]$ExeArgs)
 
 # One row per tool: command that proves it, package id per system, who needs it.
 # A missing id means there is no package for that system: the row says where to get it.
+# "snap:<name>" installs a classic snap; "script:<url>" runs the project's own installer.
+$rokitScript = 'https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh'
 $tools = @(
     @{ id = 'git';     cmd = 'git';     need = $true;      windows = 'Git.Git';                  macos = 'git';              linux = 'git' }
     @{ id = 'gh';      cmd = 'gh';      need = $true;      windows = 'GitHub.cli';               macos = 'gh';               linux = 'gh' }
@@ -65,10 +85,12 @@ $tools = @(
     @{ id = 'node';    cmd = 'node';    need = $true;      windows = 'OpenJS.NodeJS.LTS';        macos = 'node';             linux = 'nodejs' }
     @{ id = 'blender'; cmd = 'blender'; need = $wantArt;   windows = 'BlenderFoundation.Blender'; macos = '--cask blender';  linux = 'blender'
        paths = @('C:\Program Files\Blender Foundation', '/Applications/Blender.app') }
-    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; help = 'https://obsidian.md'
-       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app') }
-    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; help = 'https://github.com/rojo-rbx/rokit#installation' }
-    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; help = 'https://code.visualstudio.com' }
+    @{ id = 'obsidian'; cmd = 'obsidian'; need = $true;   windows = 'Obsidian.Obsidian';         macos = '--cask obsidian'; linux = 'snap:obsidian'; help = 'https://obsidian.md'
+       paths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Programs/Obsidian'), (Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Obsidian'), '/Applications/Obsidian.app', '/snap/bin/obsidian') }
+    @{ id = 'rokit';   cmd = 'rokit';   need = $wantCode;  windows = 'Rojo.Rokit'; macos = "script:$rokitScript"; linux = "script:$rokitScript"; help = 'https://github.com/rojo-rbx/rokit#installation'
+       paths = @((Join-Path $HOME '.rokit/bin/rokit')) }
+    @{ id = 'vscode';  cmd = 'code';    need = $wantCode;  windows = 'Microsoft.VisualStudioCode'; macos = '--cask visual-studio-code'; linux = 'snap:code'; help = 'https://code.visualstudio.com'
+       paths = @('/Applications/Visual Studio Code.app', '/snap/bin/code') }
 )
 
 function Get-ToolVersion { param($Tool)
@@ -81,18 +103,52 @@ function Test-Tool { param($Tool)
     foreach ($p in @($Tool.paths)) { if ($p -and (Test-Path -LiteralPath $p)) { return $true } }
     return $false }
 
+# Runs an installer and keeps the tail of what it printed: a failed install must say why.
+$script:installLog = ''; $script:aptUpdated = $false
+function Invoke-Install { param([string]$Exe, [string[]]$ExeArgs)
+    $r = Invoke-Quiet $Exe $ExeArgs
+    $script:installLog = $r.ok ? '' : (($r.out -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 2) -join ' | ') }
+
 function Install-Tool { param($Tool)
+    $script:installLog = ''
     $pkg = $Tool[$os]
     if (-not $pkg) { return $false }
+    if ($pkg -like 'script:*') {
+        # The installer is downloaded to a fresh, randomly named folder only the user can use, so no other
+        # process can swap the file between download and run (TOCTOU). The folder is removed afterwards.
+        # No SHA-256 check: the rokit installer publishes no hash and its URL tracks the main branch.
+        $dir = Join-Path ([IO.Path]::GetTempPath()) "nashei-install-$([guid]::NewGuid().ToString('N'))"
+        try {
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            if (-not $IsWindows) { & chmod 700 $dir }
+            $file = Join-Path $dir "$($Tool.id).sh"
+            try { Invoke-WebRequest -Uri $pkg.Substring(7) -OutFile $file -UseBasicParsing } catch { return $false }
+            Invoke-Install bash @($file)
+        } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
+        return (Test-Tool $Tool)
+    }
+    if ($pkg -like 'snap:*') {
+        if (-not (Test-Cmd snap)) { $script:installLog = 'falta snap'; return $false }
+        # The snap store times out now and then (HTTP 408): three attempts before giving up.
+        foreach ($attempt in 1..3) {
+            Invoke-Install sudo @('snap', 'install', $pkg.Substring(5), '--classic')
+            if (Test-Tool $Tool) { return $true }
+            if ($attempt -lt 3) { Start-Sleep -Seconds (15 * $attempt) }
+        }
+        return $false
+    }
     switch ($os) {
-        'windows' { if (-not (Test-Cmd winget)) { return $false }
-                    & winget install --id $pkg --exact --silent --accept-package-agreements --accept-source-agreements | Out-Null }
-        'macos'   { if (-not (Test-Cmd brew)) { return $false }
-                    & brew install @($pkg -split ' ') | Out-Null }
-        'linux'   { if (Test-Cmd apt-get) { & sudo apt-get install -y $pkg | Out-Null }
-                    elseif (Test-Cmd dnf) { & sudo dnf install -y $pkg | Out-Null }
-                    elseif (Test-Cmd pacman) { & sudo pacman -S --noconfirm $pkg | Out-Null }
-                    else { return $false } }
+        'windows' { if (-not (Test-Cmd winget)) { $script:installLog = 'falta winget (App Installer)'; return $false }
+                    Invoke-Install winget @('install', '--id', $pkg, '--exact', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') }
+        'macos'   { if (-not (Test-Cmd brew)) { $script:installLog = 'falta Homebrew: https://brew.sh'; return $false }
+                    Invoke-Install brew (@('install') + @($pkg -split ' ')) }
+        'linux'   { if (Test-Cmd apt-get) {
+                        # A machine that never refreshed its package index cannot find anything.
+                        if (-not $script:aptUpdated) { Invoke-Install sudo @('apt-get', 'update', '-qq'); $script:aptUpdated = $true }
+                        Invoke-Install sudo @('apt-get', 'install', '-y', '-qq', $pkg) }
+                    elseif (Test-Cmd dnf) { Invoke-Install sudo @('dnf', 'install', '-y', $pkg) }
+                    elseif (Test-Cmd pacman) { Invoke-Install sudo @('pacman', '-S', '--noconfirm', $pkg) }
+                    else { $script:installLog = 'no hay apt-get, dnf ni pacman'; return $false } }
     }
     # A fresh install is not on PATH of this process on Windows: re-read it.
     if ($IsWindows) { $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') }
@@ -102,9 +158,11 @@ function Install-Tool { param($Tool)
 foreach ($tool in $tools) {
     if (-not $tool.need) { Add-Result $tool.id 'NO APLICA' "Herramienta $($tool.id)" "no la pide el perfil $Perfil"; continue }
     $have = Test-Tool $tool
-    if (-not $have -and $Action -eq 'install') { $have = Install-Tool $tool }
+    if (-not $have -and $doInstall) { $have = Install-Tool $tool }
     $hint = $tool[$os] ? "paquete $($tool[$os])" : "sin paquete para $os`: $($tool.help)"
-    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint) }
+    if (-not $have -and $script:installLog) { $hint += " ($($script:installLog))" }
+    Add-Result $tool.id ($have ? 'PASA' : 'FALLA') "Herramienta $($tool.id)" ($have ? (Get-ToolVersion $tool) : $hint)
+    $results[$results.Count - 1] | Add-Member -NotePropertyName installable -NotePropertyValue ([bool]$tool[$os]) }
 
 # Roblox Studio has no Linux build and no package: it is installed from create.roblox.com.
 $studioPaths = @((Join-Path ($env:LOCALAPPDATA ?? '/nonexistent') 'Roblox\Versions'), '/Applications/RobloxStudio.app')
@@ -146,21 +204,28 @@ foreach ($root in $Repos) {
         if ("$url" -match "[:/]$([regex]::Escape($Org))/(.+?)(\.git)?/?$" -and -not $clones.ContainsKey($Matches[1])) { $clones[$Matches[1]] = $dir.FullName }
     }
 }
-$missing = @(); $noHooks = @()
+
+$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @()
 foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
         $dir = Join-Path $Repos[0] $repo.name
-        if ($Action -eq 'install') { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
+        if ($doInstall) { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
+    $why = Sync-CloneBranch -Dir $dir -Name $repo.name -Ecosystem $ecosystem -Org $Org -Install:$doInstall
+    if ($why) { $branchIssues += $why }
     if (Test-Path -LiteralPath (Join-Path $dir '.githooks')) {
-        if ($Action -eq 'install') { & git -C $dir config core.hooksPath .githooks }
+        if ($doInstall) { & git -C $dir config core.hooksPath .githooks }
         if ((& git -C $dir config core.hooksPath) -ne '.githooks') { $noHooks += $repo.name }
     }
+    # Every clone with an AGENTS.md is a place where the agent works: it must carry the board hooks.
+    if (Test-Path -LiteralPath (Join-Path $dir 'AGENTS.md')) { $loopRows += Test-AgentLoopClone -RepoPath $dir -Name $repo.name }
 }
 if ($login) {
     Add-Result 'clones' ($missing.Count ? 'FALLA' : 'PASA') "Clones en $($Repos -join ', ')" ($missing -join ', ')
+    Add-Result 'ramas' ($branchIssues.Count ? 'PERSONA' : 'PASA') 'Clones en la rama de integración' ($branchIssues -join '; ')
+    foreach ($row in $loopRows) { Add-Result $row.id $row.state $row.what $row.detail }
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
 }
 
@@ -168,15 +233,32 @@ if ($login) {
 $libOk = $false
 if (Test-Cmd rclone) {
     $env:RCLONE_LOG_LEVEL = 'ERROR'
-    $remotes = Invoke-Quiet rclone @('listremotes')
-    if ($remotes.out -notmatch "(?m)^$([regex]::Escape($Remote)):") {
-        Add-Result 'drive' 'PERSONA' "Remoto de rclone '$Remote'" 'ver docs/drive.md, sección "Tenerlo todo al día": se autoriza una vez en el navegador'
+    $root = $ecosystem.drive.raiz
+    $hasRemote = { (Invoke-Quiet rclone @('listremotes')).out -match "(?m)^$([regex]::Escape($Remote)):" }
+    $createCmd = "rclone config create $Remote drive scope=drive root_folder_id=$($root.id)"
+    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION
+    if (-not (& $hasRemote) -and $Action -eq 'install' -and -not $noBrowser) {
+        # Opens the browser: the person authorizes with the Google account the folder was shared with.
+        Invoke-Quiet rclone (@('config', 'create', $Remote, 'drive', 'scope=drive', "root_folder_id=$($root.id)")) | Out-Null
+    }
+    if (-not (& $hasRemote)) {
+        $detail = $noBrowser `
+            ? "este equipo no tiene navegador: en uno que sí lo tenga corre rclone authorize `"drive`", copia el token que imprime y aquí corre: $createCmd config_token=<token>" `
+            : "corre pwsh tools/puesto.ps1 install (crea el remoto y abre el navegador para autorizar con tu cuenta de Google) o a mano: $createCmd"
+        Add-Result 'drive' 'PERSONA' "Remoto de rclone '$Remote'" $detail
     } else {
         $ls = Invoke-Quiet rclone @('lsf', "${Remote}:", '--dirs-only')
         $libOk = $ls.ok -and $ls.out -match '10-kits'
-        Add-Result 'drive' ($libOk ? 'PASA' : 'FALLA') 'Drive del estudio' ($libOk ? '' : "el remoto no lista 10-kits; si venció la sesión: rclone config reconnect ${Remote}:")
+        if ($libOk) { Add-Result 'drive' 'PASA' 'Drive del estudio' }
+        elseif ($ls.ok) { Add-Result 'drive' 'PERSONA' 'Drive del estudio' "tu cuenta aún no ve la carpeta $($root.nombre): pide a Leon, dueño de la carpeta, que la comparta con tu cuenta de Google (Editor) y abre $($root.url) para confirmar que la ves; Leon solo verifica que rclone y el MCP de Drive vean la carpeta" }
+        else { Add-Result 'drive' 'FALLA' 'Drive del estudio' "rclone no pudo listar el remoto; si venció la sesión: rclone config reconnect ${Remote}:" }
     }
 } else { Add-Result 'drive' 'FALLA' 'Drive del estudio' 'falta rclone' }
+
+# Whisper model for meeting transcription: a path under the home folder, same on the three systems.
+$model = ($ecosystem.transcripcion.modelo -replace '^~', $HOME)
+if (Test-Path -LiteralPath $model) { Add-Result 'modelo-whisper' 'PASA' 'Modelo de transcripción' }
+else { Add-Result 'modelo-whisper' 'PERSONA' 'Modelo de transcripción (solo para transcribir reuniones)' "descárgalo con: curl -L --create-dirs -o `"$model`" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" }
 
 # Every Drive folder that carries a manifest is a library folder: discovered, not listed here.
 $kits = Join-Path $PSScriptRoot 'kits.ps1'
@@ -205,6 +287,41 @@ if (Test-Cmd claude) {
         Add-Result "mcp-$server" $state "Agente conectado a $server" ($state -eq 'PASA' ? '' : 'ver docs/primera-vez.md, tabla de conexiones')
     }
 } else { Add-Result 'mcp' 'NO APLICA' 'Conexiones MCP' 'no hay Claude Code en este equipo; tu agente usa su propio modo de conectarse' }
+
+# Informational, never blocks: the Blender MCP warns about protocol 15 and expects 16 when the addon is stale.
+if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
+    Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
+}
+
+# ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
+$communityId = 405835365
+$communityUrl = "https://www.roblox.com/communities/$communityId"
+$keysFile = Join-Path $HOME '.config/nashei/claves.env'
+function Test-KeyPresent { param([string]$Name)
+    if ($script:keysSimulated) { return ($Name -in ($script:LlavesSimuladas -split ',')) }
+    # The current process environment counts on every system (a variable exported for this session is present).
+    if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name))) { return $true }
+    if ($IsWindows) { return -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name, 'User')) }
+    # Only the line shape NAME=<something> is tested; the matched text is discarded.
+    return (Test-Path -LiteralPath $keysFile) -and [bool](Select-String -LiteralPath $keysFile -Pattern "^(export\s+)?$Name=.+" -Quiet) }
+foreach ($key in 'ROBLOX_API_KEY', 'ROBLOX_MONETIZATION_API_KEY') {
+    $present = Test-KeyPresent $key
+    Add-Result "llave-$key" ($present ? 'PASA' : 'PERSONA') "Llave de Roblox $key" ($present ? '' : "crea tu llave de usuario en create.roblox.com/dashboard/credentials con acceso a la experiencia del grupo $communityId y guárdala con los comandos de docs/primera-vez.md") }
+
+$robloxUserId = $config.robloxUserId
+$inCommunity = $null
+if ($robloxUserId -and -not $keysSimulated) {
+    try {
+        $roles = Invoke-RestMethod -Uri "https://groups.roblox.com/v2/users/$robloxUserId/groups/roles" -TimeoutSec 15
+        $inCommunity = [bool](@($roles.data | Where-Object { $_.group.id -eq $communityId }).Count)
+    } catch { $inCommunity = $null }
+}
+if ($inCommunity) { Add-Result 'comunidad' 'PASA' "Miembro de la comunidad de Roblox $communityId" }
+else { Add-Result 'comunidad' 'PERSONA' "Miembro de la comunidad de Roblox $communityId" "unirse en $communityUrl y pedir el rol a un admin (para que el chequeo automático funcione, escribe robloxUserId en puesto.json)" }
+
+# The agent's own configuration: areas, modo and wip in puesto.json (ADR 0003).
+$loop = Test-AgentLoopConfig -Base $Base
+Add-Result $loop.id $loop.state $loop.what $loop.detail
 
 # ---- Report ----
 if ($Json) { [pscustomobject]@{ os = $os; perfil = $Perfil; base = $Base; login = $login; results = $results } | ConvertTo-Json -Depth 4 }

@@ -35,6 +35,11 @@ jobs:
             macOS) brew install rclone ;;
             Windows) choco install rclone -y --no-progress ;;
           esac
+      - name: Ecosystem config
+        shell: bash
+        run: |
+          node scripts/ecosistema.mjs validate
+          node --test scripts/ecosistema.test.mjs
       - name: Smoke test
         shell: pwsh
         run: ./tools/tests/smoke.ps1
