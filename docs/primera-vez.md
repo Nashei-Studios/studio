@@ -68,7 +68,7 @@ Si `puesto.ps1` marca PERSONA en el remoto de rclone, sigue "Tenerlo todo al dí
 
 Cada persona crea **sus propias llaves de usuario**; no se comparte una llave del grupo. Creator Hub desaconseja las llaves de grupo y una llave compartida no deja saber quién hizo qué. Se necesitan dos nombres de variable: `ROBLOX_API_KEY` y `ROBLOX_MONETIZATION_API_KEY`.
 
-1. Tu persona entra a https://create.roblox.com/credentials y crea la llave con su cuenta.
+1. Tu persona entra a https://create.roblox.com/dashboard/credentials y crea la llave con su cuenta.
 2. En "Access Permissions" agrega la experiencia del juego (la que pertenece a la comunidad 405835365) y solo los scopes que el juego necesita: `ROBLOX_API_KEY` con los de publicar y subir assets, `ROBLOX_MONETIZATION_API_KEY` con los de game passes y productos. Sin acceso a más experiencias que esa.
 3. La llave se guarda **escribiéndola tu persona**. El agente nunca la ve, no la pega ni la lee: solo comprueba que exista.
 

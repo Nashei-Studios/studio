@@ -253,7 +253,7 @@ function Test-KeyPresent { param([string]$Name)
     return (Test-Path -LiteralPath $keysFile) -and [bool](Select-String -LiteralPath $keysFile -Pattern "^(export\s+)?$Name=.+" -Quiet) }
 foreach ($key in 'ROBLOX_API_KEY', 'ROBLOX_MONETIZATION_API_KEY') {
     $present = Test-KeyPresent $key
-    Add-Result "llave-$key" ($present ? 'PASA' : 'PERSONA') "Llave de Roblox $key" ($present ? '' : "crea tu llave de usuario en create.roblox.com/credentials con acceso a la experiencia del grupo $communityId y guárdala con los comandos de docs/primera-vez.md") }
+    Add-Result "llave-$key" ($present ? 'PASA' : 'PERSONA') "Llave de Roblox $key" ($present ? '' : "crea tu llave de usuario en create.roblox.com/dashboard/credentials con acceso a la experiencia del grupo $communityId y guárdala con los comandos de docs/primera-vez.md") }
 
 $robloxUserId = $config.robloxUserId
 $inCommunity = $null
