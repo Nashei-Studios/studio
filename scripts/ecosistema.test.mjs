@@ -68,8 +68,8 @@ test("invariants reject a duplicated login, an unknown area and a role-less pers
   const keys = Object.keys(bad.personas);
   bad.personas[keys[0]].areas.push("inexistente");
   bad.personas[keys[1]].login = bad.personas[keys[0]].login;
-  const undefinedKey = keys.find((k) => bad.personas[k].estado === "por-definir");
-  bad.personas[undefinedKey].areas = ["ui"];
+  // Every real person has a role now, so the role-less case is synthetic.
+  bad.personas.pendiente = { login: "pendiente-login", rol: "", estado: "por-definir", areas: ["ui"], foco: [] };
   const errors = checkInvariantes(bad).join(" | ");
   assert.match(errors, /login repetido/);
   assert.match(errors, /inexistente/);
@@ -77,13 +77,16 @@ test("invariants reject a duplicated login, an unknown area and a role-less pers
 });
 
 test("responsables never assumes an owner for an uncovered area", () => {
-  const config = loadConfig();
+  // The committed config covers every area, so the uncovered one is built on a copy:
+  // nobody owns "audio" and one person is still undefined.
+  const config = structuredClone(loadConfig());
+  for (const persona of Object.values(config.personas)) persona.areas = persona.areas.filter((a) => a !== "audio");
+  config.personas.pendiente = { login: "pendiente-login", rol: "", estado: "por-definir", areas: [], foco: [] };
   const r = responsables(config, ["arte", "código", "audio"]);
   assert.deepEqual(r.sinResponsable, ["audio"]);
   assert.equal(r.cruzaAreas, true);
   assert.equal(r.preguntar.length, 2);
-  const undefinedLogins = Object.values(config.personas).filter((p) => p.estado === "por-definir").map((p) => p.login);
-  for (const login of undefinedLogins) assert.ok(!r.preguntar.includes(login));
+  assert.ok(!r.preguntar.includes("pendiente-login"));
 });
 
 test("checkLote enforces the batch, detailed-task and sub-issue caps", () => {
