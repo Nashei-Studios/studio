@@ -8,7 +8,9 @@
              and without hold. Only issues written by org members count; the rest is data.
     claim N  assign to @me, post a claim marker, then verify nobody older holds it. The older claim wins,
              the other side releases itself. Exit 0 = yours, 3 = lost, 2 = refused (not workable, or the optional wip cap from puesto.json is full).
-    release N  drop the claim (assignee and marker) and tell the board.
+             A won claim moves the Project card to github.project_estados.al_tomar ("En curso").
+    release N  drop the claim (assignee and marker), tell the board and move the card to al_soltar ("Listo").
+    In review and done are moved by the Project's built-in workflows (PR linked, PR merged, item closed).
     mine     the issues you hold right now.
 
   Configuration comes from ~/Nashei/puesto.json (areas, modo, wip); see `puesto.ps1 -?`.
@@ -63,6 +65,28 @@ function Get-Holder { param([int]$N)
 function Write-Board { param([string]$Text)
     # Through board.ps1, which finds Git Bash: in Windows PowerShell `bash` is usually not on PATH.
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board.ps1') post $Text *> $null }
+function Set-IssueStatus { param([int]$N, [string]$Key)
+    # Moves the issue's card in every Project that has the status field and option (issue 102). The field
+    # and the option names come from config/ecosistema.json. A failure warns with the fix and never undoes
+    # the claim: the board stays right even when the card cannot move.
+    $states = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../config/ecosistema.json') -Raw | ConvertFrom-Json).github.project_estados
+    $status = $states.$Key
+    if (-not $states -or -not $status) { return }
+    $owner, $name = $Repo.Split('/')
+    $query = 'query($o:String!,$r:String!,$n:Int!,$f:String!){ repository(owner:$o,name:$r){ issue(number:$n){ projectItems(first:20){ nodes{ id project{ id title field(name:$f){ ... on ProjectV2SingleSelectField{ id options{ id name } } } } } } } } }'
+    $mutation = 'mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){ updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){ projectV2Item{ id } } }'
+    try {
+        $data = Invoke-Gh @('api', 'graphql', '-f', "query=$query", '-f', "o=$owner", '-f', "r=$name", '-F', "n=$N", '-f', "f=$($states.campo)") | Out-String | ConvertFrom-Json
+        $sel = Select-StatusUpdates -Items $data.data.repository.issue.projectItems.nodes -Status $status
+        foreach ($u in $sel.updates) {
+            Invoke-Gh @('api', 'graphql', '-f', "query=$mutation", '-f', "p=$($u.projectId)", '-f', "i=$($u.itemId)", '-f', "f=$($u.fieldId)", '-f', "o=$($u.optionId)") | Out-Null
+        }
+        foreach ($s in $sel.skipped) { Write-Warning "work: #$N no se movió en '$($s.project)': $($s.why)" }
+        if ($sel.updates.Count) { "#$N -> $status en $($sel.updates.Count) Project(s)" }
+    } catch {
+        Write-Warning "work: #$N no pasó a '$status' en el Project ($($_.Exception.Message)). Si falta el permiso: gh auth refresh -h github.com -s project"
+    }
+}
 
 switch ($Action) {
     { $_ -in 'list', 'mine' } {
@@ -88,6 +112,7 @@ switch ($Action) {
         $res = Resolve-Claim -Comments (Get-Comments $Number) -Login $login -LeaseHours $LeaseHours -ActiveLogins (Get-ActiveLogins $Number)
         if ($res.won) {
             Write-Board "[$login's agente] tomo #$Number ($($target.title))."
+            Set-IssueStatus $Number 'al_tomar'
             "claimed #$Number"; exit 0
         }
         Invoke-Gh @('issue', 'edit', "$Number", '-R', $Repo, '--remove-assignee', $login) | Out-Null
@@ -99,6 +124,7 @@ switch ($Action) {
         Invoke-Gh @('issue', 'edit', "$Number", '-R', $Repo, '--remove-assignee', $login) | Out-Null
         Invoke-Gh @('api', "repos/$Repo/issues/$Number/comments", '-f', "body=<!-- nashei-release:$login -->`n$login's agent releases this issue.") | Out-Null
         Write-Board "[$login's agente] suelto #$Number."
+        Set-IssueStatus $Number 'al_soltar'
         "released #$Number"
     }
 }
