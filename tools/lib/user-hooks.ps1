@@ -25,7 +25,9 @@ function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'pregun
     [ordered]@{
         SessionStart     = [ordered]@{ matcher = 'startup|resume|clear'; hooks = @(& $entry 'session-start' 20) }
         UserPromptSubmit = [ordered]@{ hooks = @(& $entry 'prompt' 10) }
-        PreToolUse       = [ordered]@{ matcher = $studioTools; hooks = @(& $entry 'candado' 10 $lockExtra) }
+        PreToolUse       = @(
+            [ordered]@{ matcher = $studioTools; hooks = @(& $entry 'candado' 10 $lockExtra) },
+            [ordered]@{ matcher = 'Edit|Write|MultiEdit|NotebookEdit'; hooks = @(& $entry 'rama' 10) })
         PostToolUse      = [ordered]@{ matcher = "$studioTools|mcp__.*[Gg]oogle.?[Dd]rive.*|^Bash$|^PowerShell$"; hooks = @(& $entry 'registro' 10) }
         Stop             = [ordered]@{ hooks = @(& $entry 'cierre' 15) }
     } }
@@ -55,7 +57,7 @@ function Merge-UserHooks { param($Settings, $Spec)
     }
     foreach ($event in $Spec.Keys) {
         $list = @($hooks[$event] | Where-Object { $_ })
-        $list += , $Spec[$event]   # the comma keeps the group as one element
+        foreach ($group in @($Spec[$event])) { $list += , $group }   # the comma keeps each group as one element
         $hooks[$event] = $list
     }
     if ($hooks.Count) { $out.hooks = $hooks } else { $out.Remove('hooks') }
@@ -69,15 +71,15 @@ function Test-UserHooks { param($Settings, [string]$HookScript, [string]$Modo = 
     $want = ($HookScript -replace '\\', '/')
     $spec = Get-NasheiHookSpec $HookScript $Modo
     $missing = @()
-    foreach ($event in $spec.Keys) {
-        $mode = $spec[$event].hooks[0].args[3]
+    foreach ($event in $spec.Keys) { foreach ($want1 in @($spec[$event])) {
+        $mode = $want1.hooks[0].args[3]
         $found = @($Settings.hooks.$event | ForEach-Object { @($_.hooks) } | Where-Object {
                 $args2 = @($_.args | ForEach-Object { "$_" -replace '\\', '/' })
                 (Test-IsNasheiHook $_) -and ($args2 -contains $mode) -and
                 ($IsWindows ? ($args2 -icontains $want) : ($args2 -ccontains $want)) -and
-                ("$($_.onFailure)" -eq "$($spec[$event].hooks[0].onFailure)") })
-        if (-not $found.Count) { $missing += $event }
-    }
+                ("$($_.onFailure)" -eq "$($want1.hooks[0].onFailure)") })
+        if (-not $found.Count) { $missing += $event; break }
+    } }
     if (-not (Test-Path -LiteralPath $HookScript)) { $missing += 'script' }
     $missing }
 

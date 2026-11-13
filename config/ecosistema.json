@@ -5,6 +5,7 @@
   "github": {
     "organizacion": "Nashei-Studios",
     "rama_integracion": "develop",
+    "ramas_protegidas": ["develop", "main"],
     "repos": {
       "studio": { "slug": "Nashei-Studios/studio", "rama_base": "develop" },
       "claude-toolkit": { "slug": "Nashei-Studios/claude-toolkit", "rama_base": "develop" },

@@ -182,18 +182,6 @@ if ($os -eq 'linux') { Add-Result 'studio-app' 'NO APLICA' 'Roblox Studio' 'no e
 elseif ($studioPaths | Where-Object { Test-Path -LiteralPath $_ }) { Add-Result 'studio-app' 'PASA' 'Roblox Studio' }
 else { Add-Result 'studio-app' 'PERSONA' 'Roblox Studio' 'instalar desde https://create.roblox.com y entrar con tu cuenta' }
 
-# VS Code Live Share, to code together live on the branch of whoever shares. Never FALLA: it is a personal install.
-$liveShareId = 'ms-vsliveshare.vsliveshare'
-$liveShareInstall = "code --install-extension $liveShareId"
-if (-not $wantCode) { Add-Result 'live-share' 'NO APLICA' 'VS Code con Live Share' "no lo pide el perfil $Perfil" }
-elseif (-not (Test-Cmd code)) { Add-Result 'live-share' 'PERSONA' 'VS Code con Live Share' "no hay code en el PATH: abre VS Code, Ctrl+Shift+P, Shell Command: Install 'code' command in PATH, y corre: $liveShareInstall" }
-else {
-    $extensions = Invoke-Quiet code @('--list-extensions')
-    $hasLiveShare = $extensions.ok -and (@($extensions.out -split "`n" | ForEach-Object { $_.Trim() }) -contains $liveShareId)
-    if ($hasLiveShare) { Add-Result 'live-share' 'PASA' 'VS Code con Live Share' }
-    else { Add-Result 'live-share' 'PERSONA' 'VS Code con Live Share' "instalar la extensión: $liveShareInstall" }
-}
-
 # ---- 2. GitHub session and membership ----
 $login = $null; $list = @()
 if (Test-Cmd gh) {
@@ -330,7 +318,7 @@ if (Test-Cmd claude) {
     catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
     $hooksOk = -not $why -and -not $missingHooks.Count
     $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
-    Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado)' $hooksDetail
+    Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado, guardia de rama)' $hooksDetail
 } else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
