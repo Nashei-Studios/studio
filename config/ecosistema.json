@@ -76,36 +76,42 @@
       "estado": "definido",
       "areas": [
         "código",
-        "infra"
+        "infra",
+        "economía"
       ],
       "foco": [
         "scripting",
         "sistemas",
         "rendimiento",
-        "tests"
+        "tests",
+        "monetización (sistemas, pases, precios)"
       ]
     },
     "leon": {
       "login": "leonaranguiz2012-a11y",
-      "rol": "Builder, modelado, mapas, niveles y arte",
+      "rol": "Builder, modelado, mapas, niveles, arte y toda la UI (la UI de los juegos legacy es suya y reemplaza la de la plantilla)",
       "estado": "definido",
       "areas": [
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ],
       "foco": [
         "builder",
         "modelado",
         "mapas",
         "niveles",
-        "arte"
+        "arte",
+        "ui",
+        "audio"
       ]
     },
     "nande": {
       "login": "Nandeken",
-      "rol": "por definir",
-      "estado": "por-definir",
-      "areas": [],
-      "foco": []
+      "rol": "Beta tester y líder del grupo (dirige el proyecto). Base fijada por Victor el 2026-11-13; todavía sin agente propio",
+      "estado": "definido",
+      "areas": ["crecimiento"],
+      "foco": ["beta testing", "dirección del proyecto", "prioridades", "validación global"]
     }
   },
   "planificacion": {
