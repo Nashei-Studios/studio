@@ -1,2 +1,5 @@
 .board/
 
+
+# Redirected output of local runs (gate, smoke, push): never versioned.
+logs/
