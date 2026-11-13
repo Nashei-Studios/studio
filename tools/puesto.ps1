@@ -322,7 +322,8 @@ if (Test-Cmd claude) {
 } else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
-$communityId = 405835365
+# The Roblox community comes from the ecosystem config, like every other id.
+$communityId = [long]$ecosystem.roblox.grupo_id
 $communityUrl = "https://www.roblox.com/communities/$communityId"
 $keysFile = Join-Path $HOME '.config/nashei/claves.env'
 function Test-KeyPresent { param([string]$Name)
