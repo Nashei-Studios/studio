@@ -63,7 +63,12 @@
       "archivo": { "nombre": "90-archivo", "id": "1iIM57oV7GABETHXQ3aEzyJDJ_IZ-GGkn" }
     }
   },
-  "roblox": { "grupo_id": 405835365 },
+  "roblox": {
+    "grupo_id": 405835365,
+    "places": [
+      { "nombre": "Drain the Sea!", "place_id": 101914861453386, "universe_id": 10776256736, "repo": "drain-for-loot" }
+    ]
+  },
   "personas": {
     "victor": {
       "login": "vruizz22",

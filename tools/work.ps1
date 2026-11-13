@@ -61,8 +61,8 @@ function Get-ActiveLogins { param([int]$N)
 function Get-Holder { param([int]$N)
     (Resolve-Claim -Comments (Get-Comments $N) -Login $login -LeaseHours $LeaseHours -ActiveLogins (Get-ActiveLogins $N)).winner }
 function Write-Board { param([string]$Text)
-    $board = Join-Path $PSScriptRoot 'board'
-    & bash $board post $Text *> $null }
+    # Through board.ps1, which finds Git Bash: in Windows PowerShell `bash` is usually not on PATH.
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board.ps1') post $Text *> $null }
 
 switch ($Action) {
     { $_ -in 'list', 'mine' } {

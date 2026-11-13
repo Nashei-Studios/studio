@@ -63,6 +63,8 @@ try {
     Assert ((Test-AgentLoopConfig $base).state -eq 'PERSONA') 'no puesto.json is PERSONA'
     '{"areas":["area:arte"],"modo":"autonomo","wip":2}' | Set-Content (Join-Path $base 'puesto.json')
     Assert ((Test-AgentLoopConfig $base).state -eq 'PASA') 'a complete config passes'
+    '{"areas":["area:arte"],"modo":"estricto"}' | Set-Content (Join-Path $base 'puesto.json')
+    Assert ((Get-PuestoLoopConfig $base).modo -eq 'estricto') 'estricto is accepted as modo'
     '{"areas":["arte"]}' | Set-Content (Join-Path $base 'puesto.json')
     $c = Get-PuestoLoopConfig $base
     Assert ($c.modo -eq 'preguntar' -and $c.problems.Count -ge 2) 'bad areas and missing modo are reported, default modo is preguntar'

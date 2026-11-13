@@ -6,7 +6,7 @@
 $script:NotForAgent = @('hold', 'needs-info', 'needs-triage', 'ready-for-human', 'solo-victor', 'acuerdo', 'board')
 $script:ClaimRegex = '<!--\s*nashei-claim:([A-Za-z0-9-]+)\s*-->'
 $script:ReleaseRegex = '<!--\s*nashei-release:([A-Za-z0-9-]+)\s*-->'
-$script:Modes = @('preguntar', 'autonomo')
+$script:Modes = @('preguntar', 'autonomo', 'estricto')   # estricto: takes work like preguntar, and the start lock blocks (issue 67)
 
 function ConvertTo-UtcTime { param($Value) ([datetimeoffset]$Value).UtcDateTime }
 
@@ -30,9 +30,9 @@ function Get-PuestoLoopConfig {
     if (-not $cfg.areas.Count) { $cfg.problems += 'falta areas (por ejemplo ["area:arte"])' }
     if ($raw.ContainsKey('modo')) {
         if ($raw.modo -in $script:Modes) { $cfg.modo = $raw.modo }
-        else { $cfg.problems += "modo '$($raw.modo)' no valido (preguntar | autonomo); se usa preguntar" }
+        else { $cfg.problems += "modo '$($raw.modo)' no valido (preguntar | autonomo | estricto); se usa preguntar" }
     }
-    else { $cfg.problems += 'falta modo (preguntar | autonomo); se usa preguntar' }
+    else { $cfg.problems += 'falta modo (preguntar | autonomo | estricto); se usa preguntar' }
     if ($raw.ContainsKey('wip')) {
         if ($raw.wip -is [ValueType] -and $raw.wip -eq [math]::Floor($raw.wip) -and $raw.wip -ge 1) { $cfg.wip = [int]$raw.wip }
         else { $cfg.problems += 'wip debe ser un entero >= 1; se usa 1' }
