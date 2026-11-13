@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuración del ecosistema de Nashei Studios",
+  "type": "object",
+  "required": ["version", "github", "notion", "drive", "roblox", "reuniones"],
+  "properties": {
+    "version": { "type": "integer" },
+    "github": {
+      "type": "object",
+      "required": ["organizacion", "repos"],
+      "properties": {
+        "organizacion": { "type": "string", "minLength": 1 },
+        "repos": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["slug", "rama_base"],
+            "properties": {
+              "slug": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+              "rama_base": { "type": "string", "enum": ["develop", "main"] }
+            }
+          }
+        }
+      }
+    },
+    "notion": {
+      "type": "object",
+      "required": ["raiz", "bases"],
+      "properties": {
+        "raiz": {
+          "type": "object",
+          "required": ["nombre", "id"],
+          "properties": {
+            "nombre": { "type": "string" },
+            "id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+          }
+        },
+        "bases": {
+          "type": "object",
+          "required": ["reuniones", "juegos", "tareas", "sesiones_testeo"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["nombre", "database_id", "data_source_id"],
+            "properties": {
+              "nombre": { "type": "string", "minLength": 1 },
+              "alias": { "type": "array", "items": { "type": "string" } },
+              "database_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+              "data_source_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+            }
+          }
+        }
+      }
+    },
+    "drive": {
+      "type": "object",
+      "required": ["remoto", "carpetas"],
+      "properties": {
+        "remoto": { "type": "string", "minLength": 1 },
+        "carpetas": {
+          "type": "object",
+          "required": ["reuniones", "beta_testing"],
+          "additionalProperties": {
+            "type": "object",
+            "required": ["nombre", "id"],
+            "properties": { "nombre": { "type": "string", "minLength": 1 }, "id": { "type": "string", "minLength": 10 } }
+          }
+        }
+      }
+    },
+    "roblox": {
+      "type": "object",
+      "required": ["grupo_id"],
+      "properties": { "grupo_id": { "type": "integer" } }
+    },
+    "transcripcion": {
+      "type": "object",
+      "properties": {
+        "motor": { "type": "string" },
+        "modelo": { "type": "string" },
+        "idioma": { "type": "string" },
+        "diarizacion": { "type": "string", "enum": ["ninguna", "estereo", "pyannote"] },
+        "memoria_libre_minima_mb": { "type": "integer" }
+      }
+    },
+    "reuniones": {
+      "type": "object",
+      "required": ["carpeta_prueba", "tipos"],
+      "properties": {
+        "carpeta_prueba": { "type": "string" },
+        "patron_carpeta": { "type": "string" },
+        "rama_acta": { "type": "string" },
+        "etiqueta_abiertos": { "type": "string" },
+        "etiqueta_pruebas": { "type": "string" },
+        "tipos": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["titulo", "duracion_min", "agenda", "salida"],
+            "properties": {
+              "titulo": { "type": "string" },
+              "notion_tipo": { "type": ["string", "null"] },
+              "duracion_min": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+              "agenda": { "type": "string" },
+              "salida": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

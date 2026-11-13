@@ -1,6 +1,6 @@
 # Grill inicial: qué juego hacemos
 
-Va **antes** del [grill de juego](grill-de-juego.md). Aquí el grupo elige tema, gimmick y juego entre varios candidatos, y fija la dirección de cada frente. El grill de juego viene después y baja el candidato elegido a spec, épicas e historias.
+Va **antes** del grill de juego (`docs/game/grill.md` del juego, ver [ADR 0001](../docs/adr/0001-una-sola-fuente-para-el-grill.md)). Aquí el grupo elige tema, gimmick y juego entre varios candidatos, y fija la dirección de cada frente. El grill de juego viene después y baja el candidato elegido a spec, épicas e historias.
 
 | | Grill inicial (este) | Grill de juego |
 |---|---|---|

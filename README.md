@@ -44,11 +44,14 @@ studio/
 ├── README.md            esta página
 ├── CONTEXT.md           documento de contexto para las IA de todos
 ├── AGENTS.md            reglas para agentes que trabajen en este repo
+├── config/              ecosistema.json: ids de Notion, Drive, repos y grupo (única fuente)
 ├── docs/
 │   ├── guia-10-min.md   cómo se trabaja, para quien llega
 │   ├── acuerdos.md      acuerdos del equipo y los que faltan por cerrar
 │   ├── ecosistema.md    mapa: GitHub, Notion, Drive, Roblox
 │   ├── notion.md        cómo conectar Notion y qué estructura lleva
+│   ├── reuniones.md     cómo se prepara, conduce y procesa una reunión
+│   ├── adr/             decisiones del estudio, una por archivo
 │   ├── sumar-persona.md pasos para agregar a alguien al estudio
 │   └── hackathon.md     el mismo sistema en un solo repo, para un proyecto corto
 └── .github/

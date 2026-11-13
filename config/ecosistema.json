@@ -1,0 +1,112 @@
+{
+  "$schema": "./ecosistema.schema.json",
+  "version": 1,
+  "actualizado": "2026-11-12",
+  "github": {
+    "organizacion": "Nashei-Studios",
+    "repos": {
+      "studio": { "slug": "Nashei-Studios/studio", "rama_base": "develop" },
+      "claude-toolkit": { "slug": "Nashei-Studios/claude-toolkit", "rama_base": "develop" },
+      "roblox-game-template": { "slug": "Nashei-Studios/roblox-game-template", "rama_base": "develop" },
+      "roblox-vault": { "slug": "Nashei-Studios/roblox-vault", "rama_base": "develop" },
+      "project-template": { "slug": "Nashei-Studios/project-template", "rama_base": "develop" },
+      "art": { "slug": "Nashei-Studios/art", "rama_base": "develop" },
+      "dotgithub": { "slug": "Nashei-Studios/.github", "rama_base": "main" },
+      "drain-for-loot": { "slug": "Nashei-Studios/drain-for-loot", "rama_base": "develop" }
+    }
+  },
+  "notion": {
+    "raiz": { "nombre": "Centro del estudio", "id": "415fe12b-a830-811f-b8f4-dbed6ce4b0be" },
+    "bases": {
+      "reuniones": {
+        "nombre": "Reuniones",
+        "database_id": "b608fde9-24f8-4a25-8b0c-f734fa794552",
+        "data_source_id": "a1efdc69-8ba3-4873-8a8d-4baf66136b41"
+      },
+      "juegos": {
+        "nombre": "Juegos",
+        "database_id": "75a9f81f-a160-4e67-9874-4402a8429184",
+        "data_source_id": "05af9c87-24be-4611-a194-8c0d79bc280a"
+      },
+      "tareas": {
+        "nombre": "GitHub",
+        "alias": ["Tareas"],
+        "database_id": "9cf5e51f-c265-40ed-bfb6-f946971bc99f",
+        "data_source_id": "919ac446-7da2-4769-a751-7cc6c46b739c"
+      },
+      "sesiones_testeo": {
+        "nombre": "Sesiones de testeo",
+        "database_id": "e6ab34c5-ea17-43c0-a27f-e866285a11ab",
+        "data_source_id": "184ca507-7390-421c-893f-bdd123d51b70"
+      }
+    }
+  },
+  "drive": {
+    "remoto": "nashei",
+    "carpetas": {
+      "empieza_aqui": { "nombre": "00-empieza-aqui", "id": "1Ayob-OQ85WqKBvpY42dU_HbWkCPlwqxU" },
+      "kits": { "nombre": "10-kits", "id": "1RzYhHPdvop6avChiTblcK1l00fApmhAa" },
+      "reuniones": { "nombre": "15-reuniones", "id": "1NQ6iecEP0btHKMzKgn7BqEe_n_EL9sBN" },
+      "investigacion": { "nombre": "20-investigacion", "id": "1gkSth6-Rfr4wzRGQ189dIrsYBog8Ftqo" },
+      "video": { "nombre": "30-video", "id": "1ovqDnHMa-skcxyXT8RTmu1d1vRYefdvp" },
+      "beta_testing": { "nombre": "35-beta-testing", "id": "1reYgtvinR8J_gVZmoosR-rxwv9w-hY0c" },
+      "audio": { "nombre": "40-audio", "id": "1dMxumSygcAo84ZLyykuKj0s6M2U9eh53" },
+      "arte": { "nombre": "50-arte", "id": "1MVgHP8vNtNvIbnmdQw4s5hacRGglgSK6" },
+      "legacy": { "nombre": "60-legacy", "id": "1zXvV548K-fao8Fxz069Z3tRtGLoaxDvx" },
+      "redes": { "nombre": "70-redes", "id": "1UcQvxuaHXW4hZZHe6wWpoy-SmUGm44Yp" },
+      "archivo": { "nombre": "90-archivo", "id": "1iIM57oV7GABETHXQ3aEzyJDJ_IZ-GGkn" }
+    }
+  },
+  "roblox": { "grupo_id": 405835365 },
+  "transcripcion": {
+    "motor": "whisper-cli",
+    "modelo": "D:/Victor/models/whisper/ggml-small.bin",
+    "idioma": "es",
+    "diarizacion": "estereo",
+    "memoria_libre_minima_mb": 3000
+  },
+  "reuniones": {
+    "carpeta_prueba": "_prueba",
+    "patron_carpeta": "{fecha}_{tipo}_{slug}",
+    "rama_acta": "reunion/{fecha}-{slug}",
+    "etiqueta_abiertos": "acuerdo",
+    "etiqueta_pruebas": "hold",
+    "tipos": {
+      "grill-inicial": {
+        "titulo": "Grill inicial",
+        "notion_tipo": null,
+        "duracion_min": [90, 120],
+        "agenda": "plantillas/grill-inicial.md",
+        "salida": ["decision en el vault", "candidato"]
+      },
+      "grill-juego": {
+        "titulo": "Grill de juego",
+        "notion_tipo": "Grill de juego",
+        "duracion_min": [60, 90],
+        "agenda": "roblox-game-template:docs/game/grill.md",
+        "salida": ["spec", "epicas", "historias", "issues", "project", "fila Juegos"]
+      },
+      "semanal": {
+        "titulo": "Semanal",
+        "notion_tipo": "Semanal",
+        "duracion_min": [30, 45],
+        "agenda": "plantillas/reuniones/semanal.md",
+        "salida": ["acta", "issues acuerdo"]
+      },
+      "acuerdos": {
+        "titulo": "Acuerdos",
+        "notion_tipo": "Acuerdos",
+        "duracion_min": [30, 60],
+        "agenda": "plantillas/reuniones/acuerdos.md",
+        "salida": ["ADR o PR a docs/acuerdos.md", "issues acuerdo"]
+      },
+      "revision-juego": {
+        "titulo": "Revisión de juego",
+        "notion_tipo": "Revisión de juego",
+        "duracion_min": [45, 60],
+        "agenda": "plantillas/reuniones/revision-juego.md",
+        "salida": ["acta", "issues", "veredicto"]
+      }
+    }
+  }
+}
