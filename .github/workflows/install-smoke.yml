@@ -3,8 +3,14 @@ name: install-smoke
 # Runs the real first-run install on a clean machine of each system (issue 42). It downloads Blender
 # and friends, so it only runs by hand or when the installer itself changes. Fails when a tool that has a package for that
 # system is not installed afterwards.
+# A PR runs only ubuntu: macOS bills 10x and Windows 2x on the Free plan, and both hit the 30 min limit
+# (issue 91). macOS and Windows run by hand with the `systems` input.
 on:
   workflow_dispatch:
+    inputs:
+      systems:
+        description: JSON list of runners to install on
+        default: '["ubuntu-latest", "macos-latest", "windows-latest"]'
   pull_request:
     paths: [tools/puesto.ps1, .github/workflows/install-smoke.yml]
 
@@ -16,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.systems || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
