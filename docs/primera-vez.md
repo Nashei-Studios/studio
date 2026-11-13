@@ -117,7 +117,7 @@ Recorre la carpeta de usuario y los demás discos buscando modelos, archivos de 
 Con `~/Nashei/inventario/<fecha>/resumen.md` en mano:
 
 1. Muéstrale a tu persona el resumen: cuánto tiene, cuánto ya está en el Drive, qué carpetas faltan y qué está duplicado.
-2. Propón paquetes: una carpeta por tema, nombre en minúsculas y con guiones (`casas-low-poly`, `personajes-rig`). Di el tamaño de cada uno y pregunta la licencia u origen de lo que no hizo ella misma.
+2. Propón paquetes: una carpeta por tema, nombre en minúsculas y con guiones (`casas-low-poly`, `personajes-rig`). Di el tamaño de cada uno y pregunta la licencia u origen de lo que no hizo tu persona.
 3. **Solo con su aprobación**, copia cada paquete aprobado a `~/Nashei/biblioteca/50-arte/<nombre>` y sube:
    `pwsh ~/Nashei/repos/studio/tools/kits.ps1 push -Path ~/Nashei/biblioteca/50-arte -Folder 50-arte`
 4. Lo que sirve como kit reutilizable (no un trabajo en curso) va a `10-kits` con su nota en `roblox-vault/kits/<nombre>.md`.
@@ -138,9 +138,42 @@ Necesito: <qué y de quién, con @>
 
 Después lee `CONTEXT.md`, `AGENTS.md` y `docs/flujo-de-trabajo.md` de `studio`, y deja un mensaje en el Agent Board (issue 1 de `studio`).
 
-## Volver a correrlo
+### 8. Tu rol en el estudio
 
-`pwsh ~/Nashei/repos/studio/tools/puesto.ps1 check` cuando algo deje de funcionar, y `puesto.ps1 install` para ponerse al día con repos y biblioteca. El inventario se repite cuando haya material nuevo.
+Pregúntale a tu persona qué hace en el estudio y sigue el bloque que le toca, o todos los que correspondan. Según `docs/acuerdos.md` se trabaja en conjunto: los bloques dicen por dónde se empieza, no reparten el trabajo en mitades.
+
+**Arte (3D, 2D, modelos para el juego)**
+
+1. Lee `art/README.md`, `art/AGENTS.md`, `art/docs/blender.md`, `art/docs/barra-de-arte.md` y los ADR de `art/docs/adr/`. El estilo visual del juego está en el ADR 0002, que es una propuesta hasta que el grill lo apruebe. Contrasta cada asset con la barra de contraste.
+2. Blender abre siempre con el archivo base del estudio. Confirma que el `startup.blend` del usuario de Blender sea el `nashei-base.blend` del paquete `base-blender` del Drive (`kits.ps1 pull -Path ~/Nashei/biblioteca/50-arte -Folder 50-arte -Only base-blender`), copiado a la carpeta que da `bpy.utils.user_resource("CONFIG")`. Las fuentes `.blend` viven fuera del repo, en la carpeta que indique `NASHEI_ART_SOURCES`.
+3. Las tareas salen del tablero del juego: issues con la etiqueta `area:arte` en el repo del juego (y el Agent Board, issue 1 de `studio`). Toma una solo si nadie la tiene y pon tu nombre en el issue antes de empezar, así dos agentes no trabajan en lo mismo.
+4. Para cada asset sigue "Agregar un asset" de `art/README.md`: la receta en `build.py`, `pwsh tools/build.ps1 -Asset <slug>` hasta ver `GATE True`, una PR con la receta, la ficha y el `.glb`, y el `.blend` al Drive con `kits.ps1`.
+5. Para entregarlo al juego, se importa a Studio en la experiencia del grupo, nunca en una place personal. El id del asset va al issue. Si el asset tiene sonidos o imágenes, deben ser del grupo o de libre uso; uno de una cuenta personal no carga en el juego del grupo.
+6. El trabajo hecho antes de este sistema (experiencias, places y modelos propios) se inventaría y se contrasta con el Drive (paso 6). No se archiva ni se borra nada sin la decisión de tu persona.
+
+**Código, rendimiento y pruebas**
+
+Lee `docs/game/` del repo del juego, sobre todo `grill.md`, `qa-plan.md` y `metrics.md`, y la nota de rendimiento del vault (`research/2026-11-12-rendimiento-y-carga.md`). Ningún cambio se da por listo sin probarlo por el MCP de Studio.
+
+**Beta testing**
+
+Lee `docs/game/beta-testing.md` del repo del juego. Las sesiones de tu persona se suben a Drive en `35-beta-testing/<juego>/<versión>/` y las de juegos de referencia en `35-beta-testing/referentes/`.
+
+**Todos**
+
+- Las reuniones se graban en `15-reuniones/` del Drive y el acta va a la base Reuniones de Notion.
+- La comunidad del estudio es https://www.roblox.com/communities/405835365. Los juegos se publican en privado bajo el grupo y solo pasan a público con la versión mayor.
+
+## Volver a correrlo y ponerse al día
+
+Cuando cambia algo del estudio, por ejemplo una herramienta, una skill o un molde nuevo, tu persona solo pega: "Ponte al día con Nashei". Entonces el agente:
+
+1. Corre `pwsh ~/Nashei/repos/studio/tools/puesto.ps1 install`, que actualiza los repos (también `claude-toolkit`) y la biblioteca. Si `claude-toolkit` trae skills nuevas, instálalas como dice su README. Después corre `puesto.ps1 check` y resuelve lo que salga FALLA o PERSONA.
+2. Lee el `CHANGELOG.md` de `studio`, de `claude-toolkit` y de `art`, más los README de los docs cambiados desde la última vez (`git log --since`), y le cuenta a tu persona qué hay de nuevo para su rol.
+3. Si hay material nuevo, repite el inventario (paso 6).
+4. Informa en la misma discusión con el formato del paso 7, empezando con `Puesta al día`.
+
+Si algo deja de funcionar: `puesto.ps1 check`.
 
 ## Qué no hace
 
