@@ -180,10 +180,12 @@ Tu agente mira el tablero y los issues, toma trabajo de tu área y te reporta. S
 ```
 
 - `areas`: etiquetas `area:código`, `area:ui`, `area:arte`, `area:economía`, `area:audio`, `area:crecimiento`, `area:infra`.
-- `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto) o `autonomo` (lo toma solo).
+- `modo`: `preguntar` (propone el issue y espera tu sí, es el valor por defecto), `autonomo` (lo toma solo) o `estricto` (como `preguntar`, y además no deja editar por MCP la place del grupo sin un issue tomado).
 - `wip`: cuántos issues a la vez; por defecto 1.
 
 `pwsh tools/puesto.ps1 check` marca PERSONA si falta algo. El protocolo completo está en `AGENTS.md` y la decisión en `docs/adr/0003-agentes-que-toman-trabajo-solos.md`.
+
+`puesto.ps1 install` registra además los hooks del estudio en tu Claude Code, a nivel usuario: el tablero se ve en cualquier carpeta, lo que el agente toca en la place del grupo, los `push` y las subidas al Drive se anotan solos, y no termina un turno sin avisarlo en el tablero. Cómo funciona: [flujo-arte-y-avisos.md](flujo-arte-y-avisos.md), sección 6.
 
 ## Volver a correrlo y ponerse al día
 

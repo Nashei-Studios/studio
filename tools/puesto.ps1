@@ -6,7 +6,8 @@
 .DESCRIPTION
     check    prints PASA / FALLA / NO APLICA / PERSONA per check, changes nothing, exits 1 on any FALLA.
     install  installs what is missing with the system package manager, clones the repos, sets the
-             git hooks and pulls the Drive library; then runs check.
+             git hooks, registers the studio's Claude Code hooks at user level (tools/board-hooks) and
+             pulls the Drive library; then runs check.
 
   A step that needs the person (a browser login, an invitation) is never automated: it is printed
   as PERSONA with the exact command to run.
@@ -15,7 +16,8 @@
     { "repos": ["D:/code/nashei", "D:/code/roblox"], "biblioteca": { "10-kits": "D:/Roblox/kits" } }
   The agent works on its own from the board and the issues (ADR 0003). It needs, in the same file:
     "areas": ["area:arte"]       issue labels it may take (area:código, area:ui, area:arte, area:economía, ...)
-    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it
+    "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it;
+                                 estricto = like preguntar, and an MCP edit to a group place is blocked without a taken issue
     "wip":   1                   issues in progress at once (default 1)
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
@@ -47,6 +49,7 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/agent-loop.ps1')
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
+. (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $os = $IsWindows ? 'windows' : ($IsMacOS ? 'macos' : 'linux')
 $wantArt = $Perfil -in 'arte', 'todo'
@@ -292,6 +295,22 @@ if (Test-Cmd claude) {
 if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
     Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
 }
+# ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
+# before ending the turn, start lock. They point at the studio clone, so a pull updates them. ----
+if (Test-Cmd claude) {
+    $studioClone = $clones['studio'] ?? (Split-Path $PSScriptRoot -Parent)
+    $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
+    $settingsPath = Get-ClaudeSettingsPath
+    $why = ''
+    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath }
+    elseif ($doInstall) { $why = 'el clon de studio no trae tools/board-hooks/board-hook.ps1: actualízalo y vuelve a correr install' }
+    $missingHooks = @()
+    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript) }
+    catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
+    $hooksOk = -not $why -and -not $missingHooks.Count
+    $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
+    Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado)' $hooksDetail
+} else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----
 $communityId = 405835365

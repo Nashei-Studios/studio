@@ -41,6 +41,8 @@ Pasos, en este orden. Aplican igual a modelado en Blender, texturas, concept, so
    tools/board post "[Leon's Claude] empiezo #N: <qué, en una frase>. Toca: <archivos o zonas, o 'nada del juego'>. Espero: <de quién, o 'nada'>."
    ```
 
+   Con los hooks de usuario (sección 6) el mismo aviso sale de `pwsh tools/board-hooks/aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..."`, que además comprueba que el issue esté tomado y abre el candado.
+
 5. **Avance relevante.** Un mensaje corto cuando cambia algo de lo que otro depende: la forma o el nombre de un asset, un nuevo bloqueo, un cambio de alcance, una decisión. No hace falta avisar cada hora ni para acusar recibo.
 6. **Cierre.** `[Leon's Claude] cierro #N: <qué quedó>, PR <url>, asset <id>.` y la PR lleva `Closes #N`.
 7. **Si se abandona,** `pwsh tools/work.ps1 release N` y un mensaje con el motivo. Un reclamo de más de 24 h sin PR ni actividad se considera abandonado.
@@ -118,6 +120,30 @@ Reglas:
 4. **El corte:** desde ese momento la place se maneja con Rojo y la plantilla, y el código se edita en `src/` por PR. Antes del corte se le avisa con tiempo en el tablero para que deje todo guardado; el agente confirma con `listo para el corte` cuando lo está.
 5. Las zonas compartidas de la sección 2 siguen pidiendo aviso a Victor antes de tocarlas; la diferencia es que ahora el aviso incluye la ruta exacta.
 6. Tras el corte, el código del juego deja de editarse en Studio (`src/` por PR, ver `AGENTS.md` del juego) y el agente de arte vuelve a hacer solo arte.
+
+## 6. Lo que hace solo el sistema: hooks de usuario
+
+`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` del clon de `studio`. Corren en cualquier carpeta, en Windows, macOS y Linux, y un `pull` del clon los actualiza. `puesto.ps1 check` dice si están (fila "Hooks del estudio a nivel usuario").
+
+| Hook | Evento | Qué hace |
+|---|---|---|
+| Tablero | `SessionStart`, `UserPromptSubmit` | Muestra lo no leído del Agent Board y la cola, como dentro de un clon. Dentro de un clon que ya trae sus propios hooks se calla, para no repetir |
+| Registro | `PostToolUse` | Anota cada edición por MCP a una place de Roblox Studio (scripts o instancias, con las rutas que nombra), cada `git push` y cada subida al Drive (`kits.ps1 push`, `rclone` al remoto del estudio, el MCP de Drive) |
+| Aviso al cerrar | `Stop` | Si quedó algo anotado sin avisar, no deja terminar el turno y da el comando del aviso. La segunda vez deja terminar y te avisa a ti |
+| Candado | `PreToolUse` | Una edición por MCP a una place del grupo (`roblox.places` de `config/ecosistema.json`) sin issue empezado: con `modo` `preguntar` o `autonomo` te pide confirmación; con `estricto` la bloquea |
+
+Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el formato de la sección 1 y la lista de lo tocado:
+
+| Comando | Qué publica |
+|---|---|
+| `aviso.ps1 empiezo -Issue N -Repo <owner/name> -Que "..."` | `empiezo`, si el issue está abierto y asignado a ti; abre el candado |
+| `aviso.ps1 avance -Que "..."` | `avance` con la lista de lo tocado; vacía la lista |
+| `aviso.ps1 cierro -Que "..." -Pr <url> -Asset <id>` | `cierro` con la lista; vacía la lista y cierra el candado |
+| `aviso.ps1 pendiente` | Nada: muestra el issue activo y lo que falta avisar |
+
+- El registro y el issue activo viven en `~/Nashei/estado/`, fuera de los repos. Lo que se publica pasa por un filtro: sin rutas personales (quedan como `~`) y sin nada con forma de token o llave.
+- La place de un Studio se conoce por `list_roblox_studios`; mientras el agente no la haya llamado, el candado trata ese Studio como del grupo.
+- El candado mira solo las ediciones por MCP. Lo que tu persona hace a mano en Studio no pasa por los hooks y se avisa igual que siempre.
 
 ## Qué no hace el agente de arte
 
