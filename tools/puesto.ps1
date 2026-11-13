@@ -32,8 +32,8 @@ param(
     [string]$Biblioteca = '',
     [string]$Org = 'Nashei-Studios',
     [string]$Remote = 'nashei',
-    # Test hook: names to treat as present instead of looking at the real environment.
-    [string[]]$LlavesSimuladas = $null,
+    # Test hook: comma-separated names to treat as present ('ninguna' = none) instead of the real environment.
+    [string]$LlavesSimuladas = $null,
     [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
@@ -246,7 +246,7 @@ $communityId = 405835365
 $communityUrl = "https://www.roblox.com/communities/$communityId"
 $keysFile = Join-Path $HOME '.config/nashei/claves.env'
 function Test-KeyPresent { param([string]$Name)
-    if ($PSBoundParameters.ContainsKey('Name') -and $null -ne $script:LlavesSimuladas) { return ($Name -in $script:LlavesSimuladas) }
+    if ($PSBoundParameters.ContainsKey('Name') -and $null -ne $script:LlavesSimuladas) { return ($Name -in ($script:LlavesSimuladas -split ',')) }
     if ($IsWindows) { return -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name, 'User')) }
     if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name))) { return $true }
     # Only the line shape NAME=<something> is tested; the matched text is discarded.

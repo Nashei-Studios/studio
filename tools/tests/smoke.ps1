@@ -74,8 +74,8 @@ try {
     Assert ($parsed.os -in 'windows', 'macos', 'linux') "puesto detects the system ($($parsed.os))"
 
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
-    $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas @() | Out-String | ConvertFrom-Json).results
-    $all = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ROBLOX_API_KEY, ROBLOX_MONETIZATION_API_KEY | Out-String | ConvertFrom-Json).results
+    $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results
+    $all = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas 'ROBLOX_API_KEY,ROBLOX_MONETIZATION_API_KEY' | Out-String | ConvertFrom-Json).results
     Assert (@($none | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PERSONA' }).Count -eq 2) 'absent Roblox keys are PERSONA'
     Assert (@($all | Where-Object { $_.id -like 'llave-*' -and $_.state -eq 'PASA' }).Count -eq 2) 'present Roblox keys are PASA'
     Assert (@($none | Where-Object { $_.id -eq 'comunidad' -and $_.state -eq 'PERSONA' }).Count -eq 1) 'community membership without a user id is PERSONA'
