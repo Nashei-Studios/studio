@@ -89,7 +89,7 @@ sequenceDiagram
   A->>J: PR del juego con Closes si corresponde
 ```
 
-1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el [ADR 0002 de art](https://github.com/Nashei-Studios/art/blob/develop/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md) y la [barra de arte](https://github.com/Nashei-Studios/art/blob/develop/docs/barra-de-arte.md).
+1. **Receta en `art`.** Sigue "Agregar un asset" de `art/README.md`: `assets/<slug>/build.py`, ficha y exportación. Estilo según el ADR 0002 de art (`art/docs/adr/0002-estilo-visual-low-poly-cartoony-color-plano.md`, repo privado) y la barra de arte (`art/docs/barra-de-arte.md`).
 2. **Compuerta en verde.** `pwsh tools/build.ps1 -Asset <slug> -Sources <fuentes>` debe terminar con `GATE True` y código de salida 0. Nunca se baja el presupuesto para que pase.
 3. **PR a `develop` de `art`** con la receta, la ficha y el `.glb`, `Closes #N` del issue de arte o `Refs` si el issue vive en el juego.
 4. **`.blend` al Drive.** `pwsh tools/kits.ps1 push -Path <biblioteca>/50-arte -Folder 50-arte`. **Solo con la aprobación explícita de Leon** para ese paquete; el agente no sube nada por su cuenta. Lo reutilizable como kit va a `10-kits` con su nota en `roblox-vault/kits/`.
