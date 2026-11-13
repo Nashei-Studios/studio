@@ -6,8 +6,8 @@ Sale de la agenda de la reunión del grupo (2026-11-11). Lo que tiene un valor y
 
 | Acuerdo | Valor |
 |---|---|
-| Horas de desarrollo al día, como máximo | por acordar |
-| Regla del bloqueo: si alguien lleva trabado más de X horas, para y pide ayuda en el Agent Board o por llamada | X por acordar |
+| Horas de desarrollo al día, como máximo | por acordar. Dedicación dicha en el grill del 2026-11-12 hasta el 2026-11-20: una hora Nande, una hora Leon, una o dos Victor (por confirmar quién dijo cada cifra) |
+| Regla del bloqueo: si alguien lleva trabado más de X horas, para y pide ayuda en el Agent Board o por llamada | X = 2 horas, aplica a todos (grill 2026-11-12, minuto P1 01:33) |
 | Cómo se pide ayuda | Un comentario `[bloqueo]` en el Agent Board con mención a quien puede destrabar |
 
 Motivo: trabajar cada uno por su lado, a prueba y error, es lo que quema. El bloqueo se dice temprano.
@@ -32,8 +32,8 @@ Todos le pasan [`CONTEXT.md`](../CONTEXT.md) a su IA antes de pedirle algo. Así
 
 | Acuerdo | Valor |
 |---|---|
-| Plazo para tener un juego jugable | 7 a 10 días |
-| Cuándo se cierra | Si después de traer gente desde redes el tiempo promedio de juego es bajo. Umbral propuesto en la agenda: 1 a 2 minutos. Valor final: por acordar |
+| Plazo para tener un juego jugable | 7 a 10 días. En el grill del 2026-11-12 se propuso 7 a 14 días por margen de error (una sola fuente, por confirmar) |
+| Cuándo se cierra | Si después de traer gente desde redes el tiempo promedio de juego es bajo. Umbral propuesto en la agenda: 1 a 2 minutos. Valor final: por acordar; en el grill del 2026-11-12 se dejó abierto porque el promedio es difícil de medir |
 | Con cuánta gente se mide antes de decidir | por acordar (el vault tiene una compuerta de cohorte de prueba, decisión 0038) |
 | Qué pasa al cerrar | Se escribe qué se aprendió, lo reutilizable pasa a la plantilla y se parte con el siguiente |
 
