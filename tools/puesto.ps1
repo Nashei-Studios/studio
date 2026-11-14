@@ -55,6 +55,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
 . (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
 . (Join-Path $PSScriptRoot 'lib/rokit-tools.ps1')
+. (Join-Path $PSScriptRoot 'lib/claude-version.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -362,6 +363,9 @@ if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
 # ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
 # before ending the turn, start lock. They point at the studio clone, so a pull updates them. ----
 if (Test-Cmd claude) {
+    # The hooks use onFailure and if: below agente.claude_code_minimo Claude Code ignores them (issue 108).
+    $claudeRow = Get-ClaudeVersionRow (Invoke-Quiet claude @('--version')).out "$($ecosystem.agente.claude_code_minimo)" (Get-PuestoLoopConfig -Base $Base).modo
+    Add-Result 'claude-version' $claudeRow.state 'Versión de Claude Code (campos de los hooks del estudio)' $claudeRow.detail
     $studioClone = $clones['studio'] ?? (Split-Path $PSScriptRoot -Parent)
     $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
     $settingsPath = Get-ClaudeSettingsPath
