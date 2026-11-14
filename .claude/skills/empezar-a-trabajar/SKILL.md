@@ -69,6 +69,17 @@ Nada se construye "a lo loco". Al tomar un issue, antes del primer cambio:
 
 Si el issue ya trae una sección `## Investigación` con pistas, esas son el punto de partida, no el techo. Investigación grande (un frente entero del juego) va con la skill `roblox-analisis-por-frentes` si el agente la tiene; si no, el mismo método en pequeño.
 
+## 3c. Las decisiones son del equipo (`needs-team`)
+
+Regla de Victor del 14-11-2026: ninguna decisión se toma con una sola persona. Incluye ideas, datos de jugadores, una opción de arquitectura entre varias, publicar o probar una versión y aceptar tareas propuestas. Deciden al menos dos del equipo (Victor y Leon; Nande también cuando está), aunque el tema no sea del área de alguno.
+
+1. **Explícala entera, no la resumas.** Escribe qué es, para qué sirve, todas las opciones reales con qué se pierde en cada una, la recomendada y por qué, y qué pasa si no se hace. Arma la explicación con el sistema completo: las skills del área, el canon `cs-*` si es diseño, y un trabajador si hace falta investigar. Agrega una parte sin jerga para quien no es del área.
+2. **Pregúntale a todos, por su canal.** Al humano de tu sesión, en el chat. A los otros, en el tablero (studio#1) con mención, para que su agente se lo explique. La misma explicación llega a todos.
+3. **Marca el issue con `needs-team`.** Nunca `needs-victor` ni el nombre de una persona.
+4. **Registra la decisión en el issue cuando respondan al menos dos.** Con medio sí no se avanza: si responde uno, se espera al otro.
+
+Quién ejecuta no cambia: publicar, gastar Robux y manejar las llaves los hace Victor, pero después de que el equipo lo decide.
+
 ## 4. Arte, mapa, UI a mano, luces o audio
 
 1. Abre la place compartida en Studio (ids en `roblox.places`). Comprobación: el panel de colaboradores en vivo la muestra.
@@ -107,4 +118,5 @@ Todo en el repo del juego (`roblox.places[].repo`). Sus scripts mandan sobre est
 | Tu Rojo contra otra cosa que no sea tu copia | Es solo para tu banco de pruebas |
 | Editar scripts en Studio | El siguiente sync los borra y no llegan a GitHub |
 | Commitear en `develop` o `main` | Todo entra por PR; `main` solo recibe releases |
-| Publicar en Roblox o hacer público el juego | Lo decide Victor |
+| Publicar en Roblox o hacer público el juego sin una decisión del equipo | Lo decide el equipo (`needs-team`, paso 3c) y lo ejecuta Victor |
+| Dejar una decisión para una sola persona | Toda decisión es `needs-team`: se le explica y pregunta a Victor y a Leon (paso 3c) |
