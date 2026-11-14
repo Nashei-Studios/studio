@@ -45,16 +45,47 @@ function Get-BranchViolation { param([string]$Path, $Ecosystem)
     [pscustomobject]@{ top = ($top -replace '\\', '/'); name = (Split-Path $top -Leaf); branch = $branch } }
 
 function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
-    <# Each `git commit` and `git push` of a Bash or PowerShell command (issue 108, finding 3): where it runs
-       (git -C <dir>, else the last cd / Set-Location / Push-Location before it, else the hook's cwd) and, for a
-       push, the branches its refspecs name (empty = the current branch). Heuristic on purpose: aliases, scripts
-       and variables are not followed, so anything it cannot read passes (the guard fails open). #>
+    <# Each `git commit` and `git push` of a Bash or PowerShell command (issue 108, finding 3), in order:
+         dir      where it runs: git -C <dir>, else the last cd / pushd / Set-Location / Push-Location before it,
+                  else the hook's cwd
+         branch   the branch an earlier `git switch` / `git checkout` of the same command moved to ('' = current)
+         targets  for a push, the branches its refspecs name ('*' for --all, --mirror or --branches; empty =
+                  the branch it is on)
+         unclear  the target cannot be read (GIT_DIR / GIT_WORK_TREE, --git-dir / --work-tree, symbolic-ref or
+                  update-ref in the same command): the guard fails closed on it
+       Aliases, scripts and variables are not followed, so a command it does not recognise passes. #>
     $quoted = '"[^"]+"|''[^'']+''|[^\s;&|]+'
-    $rx = "(?i)(?<![\w-])git(?<opts>(?:\s+-C\s+(?:$quoted)|\s+-c\s+\S+)*)\s+(?<op>commit|push)(?![\w-])(?<rest>[^;&|\n]*)"
-    $ops = @()
-    foreach ($m in [regex]::Matches($Command, $rx)) {
+    $global = "\s+-C\s+(?:$quoted)|\s+-c\s+\S+|\s+--[\w-]+(?:=\S+)?|\s+-[pPh]"
+    $rx = "(?i)(?<![\w./\\-])git(?:\.exe)?(?<opts>(?:$global)*)\s+(?<sub>[a-z][\w-]*)(?<rest>[^;&|\n]*)"
+    $envUnclear = $Command -match '(?i)(?:^|[\s;&|])(?:\$env:)?GIT_(?:DIR|WORK_TREE)\s*='
+    $ops = @(); $branch = ''; $refUnclear = $false
+    # `continue` inside a PowerShell switch only moves the switch on: the label skips to the next git call.
+    :calls foreach ($m in [regex]::Matches($Command, $rx)) {
+        $sub = $m.Groups['sub'].Value.ToLowerInvariant()
+        $opts = $m.Groups['opts'].Value
+        $words = @($m.Groups['rest'].Value.Trim() -split '\s+' | Where-Object { $_ })
+        $plain = @($words | Where-Object { $_ -notmatch '^-' })
+        switch -Regex ($sub) {
+            '^(symbolic-ref|update-ref)$' { $refUnclear = $true; continue calls }
+            '^switch$' {
+                $i = [array]::FindIndex([string[]]$words, [Predicate[string]] { param($w) $w -in '-c', '-C', '--create', '--force-create' })
+                $next = if ($i -ge 0 -and $i + 1 -lt $words.Count) { $words[$i + 1] } elseif ($plain.Count) { $plain[0] } else { '' }
+                if ($next) { $branch = $next }
+                continue calls
+            }
+            '^checkout$' {
+                # `checkout -- <file>` and `checkout <ref> -- <file>` touch files, not the branch.
+                if ($words -contains '--') { continue calls }
+                $i = [array]::FindIndex([string[]]$words, [Predicate[string]] { param($w) $w -in '-b', '-B' })
+                $next = if ($i -ge 0 -and $i + 1 -lt $words.Count) { $words[$i + 1] } elseif ($plain.Count) { $plain[0] } else { '' }
+                if ($next) { $branch = $next }
+                continue calls
+            }
+            '^(commit|push)$' { }
+            default { continue calls }
+        }
         $dir = ''
-        $c = [regex]::Match($m.Groups['opts'].Value, "-C\s+(?<d>$quoted)")
+        $c = [regex]::Match($opts, "-C\s+(?<d>$quoted)")
         if ($c.Success) { $dir = $c.Groups['d'].Value.Trim('"', "'") }
         if (-not $dir) {
             $before = $Command.Substring(0, $m.Index)
@@ -65,33 +96,46 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
         if (-not $dir) { $dir = $Cwd }
         elseif ($Cwd -and -not [IO.Path]::IsPathRooted($dir)) { $dir = Join-Path $Cwd $dir }
         $targets = @()
-        if ($m.Groups['op'].Value -ieq 'push') {
-            # The first word after the options is the remote; the rest are refspecs (src:dst, +force, refs/heads/x).
-            $words = @($m.Groups['rest'].Value.Trim() -split '\s+' | Where-Object { $_ -and $_ -notmatch '^-' })
-            foreach ($ref in @($words | Select-Object -Skip 1)) {
-                $dst = (($ref -split ':')[-1]).TrimStart('+') -replace '^refs/heads/', ''
-                if ($dst -and $dst -ne 'HEAD') { $targets += $dst }
+        if ($sub -eq 'push') {
+            if ($words | Where-Object { $_ -in '--all', '--mirror', '--branches' }) { $targets = @('*') }
+            else {
+                # The first plain word is the remote; the rest are refspecs (src:dst, +force, refs/heads/x).
+                foreach ($ref in @($plain | Select-Object -Skip 1)) {
+                    $dst = (($ref -split ':')[-1]).TrimStart('+') -replace '^refs/heads/', ''
+                    if ($dst -and $dst -ne 'HEAD') { $targets += $dst }
+                }
             }
         }
-        $ops += [pscustomobject]@{ op = $m.Groups['op'].Value.ToLowerInvariant(); dir = ($dir -replace '\\', '/'); targets = $targets }
+        $unclear = $envUnclear -or $refUnclear -or ($opts -match '(?i)--(git-dir|work-tree)')
+        $ops += [pscustomobject]@{ op = $sub; dir = ($dir -replace '\\', '/'); branch = $branch; targets = $targets; unclear = $unclear }
     }
     $ops }
 
 function Get-ShellBranchViolation { param($Op, $Ecosystem)
-    <# $null unless the commit lands on, or the push goes to, a protected branch of an organization clone. #>
+    <# $null unless the commit lands on, or the push goes to, a protected branch of an organization clone, or the
+       command hides where it goes (unclear: fails closed, wherever it runs). #>
     $top = Get-OrgCloneTop $Op.dir $Ecosystem
+    if ($Op.unclear) {
+        $where = $top ? $top : $Op.dir
+        return [pscustomobject]@{ top = ("$where" -replace '\\', '/'); name = (Split-Path "$where" -Leaf); branch = '?'; op = $Op.op; unclear = $true }
+    }
     if (-not $top) { return $null }
     $protected = @(Get-ProtectedBranches $Ecosystem)
-    $current = Get-CurrentBranch $top
-    $names = ($Op.op -eq 'push' -and @($Op.targets).Count) ? @($Op.targets) : @($current)
+    $on = $Op.branch ? $Op.branch : (Get-CurrentBranch $top)
+    $names = if ($Op.op -eq 'push' -and @($Op.targets) -contains '*') { $protected }
+             elseif ($Op.op -eq 'push' -and @($Op.targets).Count) { @($Op.targets) }
+             else { @($on) }
     $hit = @($names | Where-Object { $_ -and $_ -in $protected } | Select-Object -First 1)
     if (-not $hit.Count) { return $null }
-    [pscustomobject]@{ top = ($top -replace '\\', '/'); name = (Split-Path $top -Leaf); branch = $hit[0]; op = $Op.op } }
+    [pscustomobject]@{ top = ($top -replace '\\', '/'); name = (Split-Path $top -Leaf); branch = $hit[0]; op = $Op.op; unclear = $false } }
 
 function Format-ShellBranchReason { param($Violation, [string]$Modo)
     $v = $Violation
-    $what = $v.op -eq 'push' ? "git push a $($v.branch)" : "git commit en $($v.branch)"
     $new = "git -C `"$($v.top)`" switch -c feat/<n>-<slug>"
+    if ($v.unclear) {
+        return "Guardia de rama (modo ${Modo}): no puedo saber a qué rama va este git $($v.op) (GIT_DIR, GIT_WORK_TREE, --git-dir, --work-tree, symbolic-ref o update-ref en el mismo comando), así que no pasa. Córrelo dentro del clon, en tu rama de trabajo, sin esas opciones."
+    }
+    $what = $v.op -eq 'push' ? "git push a $($v.branch)" : "git commit en $($v.branch)"
     "Guardia de rama (modo ${Modo}): $what de $($v.name). En develop y main no se hace commit ni push directo; todo entra por PR (docs/en-vivo-y-ramas.md). Toma el issue (work.ps1 claim <n>), crea tu rama con $new (o un worktree) y repite el comando ahí." }
 
 function Get-BranchDecision { param([string]$Modo)

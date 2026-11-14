@@ -117,7 +117,8 @@ render() {
   local login="$1" id user ts b body flag
   while IFS=$'\t' read -r id user ts b; do
     [ -n "$id" ] || continue
-    body="$(printf '%s' "$b" | b64d | tr -d '\r')"
+    # A body line that starts like a post header is indented, so readers never take it for another post (issue 108).
+    body="$(printf '%s' "$b" | b64d | tr -d '\r' | sed 's/^--- @/ --- @/')"
     flag=""
     if [ -n "$login" ] && printf '%s' "$body" | grep -qiE "(^|[^A-Za-z0-9_-])@(${login}|all)([^A-Za-z0-9_-]|$)"; then
       flag=" ** MENTION **"
