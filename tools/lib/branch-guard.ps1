@@ -94,8 +94,13 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # Ninth review: a quoted -c value with a space (-c 'user.name=a b') ends the parsed option list early, so a later
     # -c would land outside it. Every `-c key=value` anywhere in the command goes through the allowlist.
     $anyRiskyC = $false
-    foreach ($c in [regex]::Matches($Command, '(?i)(?:^|\s)-c\s+[''"]?(?<k>[a-z][\w-]*(?:\.[^\s=''"]+)+)=')) {
-        if ($c.Groups['k'].Value -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
+    foreach ($c in [regex]::Matches($Command, '(?i)(?:^|\s)["'']?-c["'']?\s+(?<w>\S+)')) {
+        # One leading quote is the shell's; a quote or backslash inside the key, or a key outside the allowlist, is
+        # risky. A word with no '=' is not a config pair (grep -c 5), unless quotes could hide one.
+        $word = $c.Groups['w'].Value -replace '^["'']', ''
+        if ($word -notmatch '=') { if ($word -match '["''\\]') { $anyRiskyC = $true }; continue }
+        $key = ($word -split '=', 2)[0]
+        if ($key -match '["''\\`$]' -or $key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
     }
     $readSpans = @()   # spans of `git config` reads: a token like hooksPath inside them is not a bypass
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
@@ -211,9 +216,14 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # A hook bypass token anywhere outside a `git config` read (a script after a git switch, say), or a risky -c
     # anywhere, fails closed when nothing above already did. Ninth security review.
     $outside = $Command
-    foreach ($rs in @($readSpans | Sort-Object { $_[0] } -Descending)) { $outside = $outside.Remove($rs[0], $rs[1] - $rs[0]) }
+    # A read is exempt only in a command that expands nothing: $( ), backticks or <( ) could hide a call in it.
+    if (-not $expands) {
+        foreach ($rs in @($readSpans | Sort-Object { $_[0] } -Descending)) { $outside = $outside.Remove($rs[0], $rs[1] - $rs[0]) }
+    }
     $bypassOutside = $outside -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
-    if (($bypassOutside -or $anyRiskyC) -and -not @($ops | Where-Object { $_.unclear }).Count) {
+    # Always added when it applies: ops are judged one by one, and another unclear op may not deny (a config write
+    # in a repo outside the organization). Tenth security review.
+    if ($bypassOutside -or $anyRiskyC) {
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
