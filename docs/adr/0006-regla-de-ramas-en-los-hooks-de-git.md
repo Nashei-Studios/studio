@@ -3,7 +3,7 @@
 - Estado: aceptado 2026-11-14
 - Fecha: 2026-11-14
 - Decide: Victor (pedido del plan vigente, punto 7: seguridad del puesto)
-- Amplía: [ADR 0066 de la plantilla](https://github.com/Nashei-Studios/roblox-game-template/blob/develop/docs/adr/0066-branch-guard-without-server-rules.md), que dejó el `pre-push` solo para `main`, los borrados y la reescritura
+- Amplía: los ADR [0066](https://github.com/Nashei-Studios/roblox-game-template/blob/develop/docs/adr/0066-branch-guard-without-server-rules.md) y [0070](https://github.com/Nashei-Studios/roblox-game-template/blob/develop/docs/adr/0070-no-direct-push-to-develop.md) de la plantilla. El 0070 ya rechazaba el push directo a `develop` en la plantilla y los juegos; el `pre-push` de studio había quedado atrás y aquí se alinea
 - Refs: studio#108, PR studio#147, #149 y la de este ADR
 
 ## Contexto
@@ -17,9 +17,9 @@
 ## Decisión
 Opción 2.
 - `.githooks/pre-commit` rechaza un commit con `HEAD` en `develop` o `main`. Un `HEAD` sin rama (el worktree fijado de los hooks) pasa. Salida de emergencia, dicha antes al equipo: `ALLOW_PROTECTED_COMMIT=1`.
-- `.githooks/pre-push` ahora también rechaza un push directo a `develop`, además de `main` y los borrados: `develop` solo avanza por una PR mergeada. Salida de emergencia, la misma de antes: `ALLOW_PROTECTED_PUSH=1`.
+- `.githooks/pre-push` de studio también rechaza un push directo a `develop`, además de `main` y los borrados, como ya hacía la plantilla desde el ADR 0070: `develop` solo avanza por una PR mergeada. Salida de emergencia, la misma de antes: `ALLOW_PROTECTED_PUSH=1`.
 - La guardia de rama del agente (`board-hook.ps1 rama`) sigue dando el mensaje temprano con el comando para crear la rama, y además niega en cualquier rama lo que apagaría los hooks de git: `--no-verify`, `commit -n`, `hooksPath`, `ALLOW_PROTECTED_*`, `GIT_CONFIG_*`. También niega lo que no puede leer.
-- La plantilla y los juegos reciben los dos hooks por `roblox-game-template#265` y `template-sync`.
+- La plantilla y los juegos reciben el `pre-commit` por `roblox-game-template#265` y `template-sync`. El `pre-push` ya lo tienen.
 
 ## Consecuencias
 - Positivas: la regla deja de depender de leer la shell; un alias o un script no la saltan. Lo que el agente no puede leer falla cerrado, y lo que sí puede leer recibe un mensaje útil antes de llegar a git.
