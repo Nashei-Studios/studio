@@ -98,10 +98,16 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
         # One leading quote is the shell's; a quote or backslash inside the key, or a key outside the allowlist, is
         # risky. A word with no '=' is not a config pair (grep -c 5), unless quotes could hide one.
         $word = $c.Groups['w'].Value -replace '^["'']', ''
-        if ($word -notmatch '=') { if ($word -match '["''\\]') { $anyRiskyC = $true }; continue }
+        # Eleventh review: $, a backtick, % or parentheses can expand into a key=value pair when the shell runs it.
+        if ($word -notmatch '=') { if ($word -match '["''\\`$%()]') { $anyRiskyC = $true }; continue }
         $key = ($word -split '=', 2)[0]
-        if ($key -match '["''\\`$]' -or $key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
+        if ($key -match '["''\\`$%()]' -or $key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
     }
+    # Eleventh review: the shell drops quotes and escapes glued inside a word (c''ommit, -c'', --no-''verify,
+    # c`ommit, c\ommit), so git runs a word the parser never read. A sensitive token that only shows up once they
+    # are dropped means the command hides it: it fails closed below.
+    $sensitive = '(?i)(?<![\w-])(?:commit|push|-c|--no-v[a-z-]*)(?![\w-])|hookspath|--config-env|allow_protected_|git_config_'
+    $hidden = [regex]::Matches(($Command -replace '[''"`\\]', ''), $sensitive).Count -gt [regex]::Matches($Command, $sensitive).Count
     $readSpans = @()   # spans of `git config` reads: a token like hooksPath inside them is not a bypass
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
@@ -223,7 +229,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     $bypassOutside = $outside -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
     # Always added when it applies: ops are judged one by one, and another unclear op may not deny (a config write
     # in a repo outside the organization). Tenth security review.
-    if ($bypassOutside -or $anyRiskyC) {
+    if ($bypassOutside -or $anyRiskyC -or $hidden) {
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
