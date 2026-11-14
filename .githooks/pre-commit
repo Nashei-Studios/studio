@@ -1,0 +1,15 @@
+#!/bin/sh
+# Local guard for the permanent branches (ADR 0066, issue 108): nobody commits on develop or main; work goes
+# through a branch and a PR. Git knows the real branch however the command was written (an alias, a script,
+# bash -c, a variable), so the rule lives here; the agent's shell guard only answers earlier with the branch
+# command. A detached HEAD (a worktree pinned to a tag) is not a branch and passes.
+# Enabled by scripts/bootstrap.ps1 and puesto.ps1 install with: git config core.hooksPath .githooks
+# Emergency override, stated out loud to the team first: ALLOW_PROTECTED_COMMIT=1 git commit ...
+[ "$ALLOW_PROTECTED_COMMIT" = "1" ] && exit 0
+branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || exit 0
+case "$branch" in
+  main | develop)
+    echo "pre-commit: refusing a commit on '$branch'. Create your branch first: git switch -c feat/<n>-<slug>" >&2
+    exit 1 ;;
+esac
+exit 0

@@ -287,10 +287,10 @@ try {
         # 11c. Branch guard from the shell (issue 108, finding 3): git commit and git push on a protected branch.
         # Rooted on every system (a D:/ path is relative on Linux and macOS).
         $w = $work -replace '\\', '/'
-        $ops = @(Get-ShellGitOps "cd `"$w/r/mi repo`" && git add . && git commit -m `"x`" && git -C $w/other push origin HEAD:develop" "$w/cwd")
+        $ops = @(Get-ShellGitOps "cd `"$w/r/mi repo`" && git add . && git commit -m `"x`" && git -C $w/other push origin HEAD:develop" "$w/cwd" | Where-Object { $_.op -in 'commit', 'push' })
         Assert ($ops.Count -eq 2 -and $ops[0].op -eq 'commit' -and $ops[0].dir -eq "$w/r/mi repo") 'shell: a commit runs where the last cd went'
         Assert ($ops[1].op -eq 'push' -and $ops[1].dir -eq "$w/other" -and ($ops[1].targets -join ',') -eq 'develop') 'shell: git -C wins and HEAD:develop targets develop'
-        Assert (@(Get-ShellGitOps 'git commit-tree abc; git log --oneline; echo commit' "$w/cwd").Count -eq 0) 'shell: commit-tree, log and a bare word are not commits'
+        Assert (@(Get-ShellGitOps 'git commit-tree abc; git log --oneline; echo commit' "$w/cwd" | Where-Object { $_.op -in 'commit', 'push' }).Count -eq 0) 'shell: commit-tree, log and a bare word are not commits'
         Assert ((@(Get-ShellGitOps 'Set-Location sub; git push -u origin feat/1-x +main refs/heads/develop' "$w/cwd")[0].targets -join ',') -eq 'feat/1-x,main,develop') 'shell: Set-Location is followed and every refspec is a target'
         Assert (@(Get-ShellGitOps 'git -c user.name=x commit -m y' "$w/cwd")[0].dir -eq "$w/cwd") 'shell: git -c options are skipped and the cwd is used'
         Assert (@(Get-ShellGitOps '/usr/bin/git push origin main' "$w/cwd").Count -eq 1 -and @(Get-ShellGitOps '& "C:\Program Files\Git\cmd\git.exe" push origin main' "$w/cwd").Count -eq 1) 'shell: git with a path in front is still git'
@@ -344,6 +344,49 @@ try {
         foreach ($hidden in @('bash -c "git commit -m x"', '`git push origin main`', '{git commit -m x}', '$x=git push origin main', 'echo hi | xargs git commit -m x')) {
             Assert ((& $guardShell 'Bash' $hidden "$guardOrg") -match '"permissionDecision":"deny"') "shell: a commit or push the parser cannot place fails closed ($hidden)"
         }
+        # Fourth review: the rule lives in .githooks, so anything that switches them off or redirects a push through
+        # config is denied even on a work branch; refspecs that cannot be named fail closed.
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
+        foreach ($bypass in @('git commit --no-verify -m x', 'git commit -anm x', 'git -c core.hooksPath=/dev/null commit -m x',
+                'git push --no-verify origin feat/89-guard', 'ALLOW_PROTECTED_PUSH=1 git push origin feat/89-guard',
+                'git -c remote.origin.push=HEAD:develop push', 'git push origin :', "git push origin 'feat/*'",
+                'git commit -m "$(git push origin main)"', 'git config core.hooksPath x; git commit -m y')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        & git -C $guardOrg config remote.origin.push 'HEAD:refs/heads/develop'
+        Assert ((& $guardShell 'Bash' 'git push' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a plain push follows remote.origin.push when the repo sets it'
+        & git -C $guardOrg config --unset remote.origin.push
+        Assert ((& $guardShell 'Bash' 'git commit -m "say git push in the message" && git push -u origin feat/89-guard' "$guardOrg").Trim() -eq '') 'shell: the usual commit and push of a work branch still pass'
+        Assert ((& $guardShell 'Bash' 'git checkout "feat/*" && git commit -m x' "$guardOrg").Trim() -eq '') 'shell: a glob word is never taken for a branch (stays on the work branch)'
+        # Fifth review: abbreviations of --no-verify, risky config written on its own, aliases, and a clone whose
+        # core.hooksPath does not point at .githooks.
+        foreach ($bypass in @('git commit --no-veri -m x', 'git push --no-v origin feat/89-guard', 'git config core.hooksPath /dev/null',
+                'git config alias.ci commit', 'git config --global alias.p "push origin HEAD:develop"', 'git config remote.origin.push HEAD:develop')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git config --get core.hooksPath && git config --list' "$guardOrg").Trim() -eq '') 'shell: reading the config passes'
+        Assert ((& $guardShell 'Bash' 'git config alias.ci commit' $noRepo).Trim() -eq '') 'shell: a local alias outside the organization is that repo''s business'
+        & git -C $guardOrg config alias.ci 'commit --no-verify'
+        Assert ((& $guardShell 'Bash' 'git ci -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: an alias that runs a commit fails closed'
+        & git -C $guardOrg config --unset alias.ci
+        Assert ((& $guardShell 'Bash' 'git status && git log -1' "$guardOrg").Trim() -eq '') 'shell: plain subcommands with no alias pass'
+        # Sixth review: any alias fails closed (chains, shells, flags), -c on any call, and config writes in every form.
+        & git -C $guardOrg config alias.st 'status'
+        Assert ((& $guardShell 'Bash' 'git st' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: any alias in an organization clone fails closed'
+        & git -C $guardOrg config --unset alias.st
+        foreach ($bypass in @('git -c alias.x=push x origin develop', 'git config include.path /tmp/evil', 'git config set alias.ci commit', 'git config --get-all x alias.ci commit')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git config get core.hooksPath; git config --get-regexp alias' "$guardOrg").Trim() -eq '') 'shell: reading with the new get syntax and --get-regexp passes'
+        # Seventh review: --config-env, quoted keys and whole risky sections.
+        foreach ($bypass in @('git --config-env=alias.x=X x', 'git config "alias.ci" commit', 'git config --rename-section foo alias', 'git config --remove-section "core"')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git config --remove-section branch.feat/old' "$guardOrg").Trim() -eq '') 'shell: removing a branch section (the cleanup after a merge) passes'
+        New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
+        Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
+        & git -C $guardOrg config core.hooksPath .githooks
+        Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg").Trim() -eq '') 'shell: with core.hooksPath on .githooks a work-branch commit passes'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
         & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
 

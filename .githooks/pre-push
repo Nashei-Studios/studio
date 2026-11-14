@@ -1,10 +1,13 @@
 #!/bin/sh
-# Local guard for the permanent branches (ADR 0066). A private repo on the Free plan has no
-# server-side branch rules, so this hook stops the destructive pushes before they leave the machine:
+# Local guard for the permanent branches (ADR 0066, issue 108). A private repo on the Free plan has no
+# server-side branch rules, so this hook stops the pushes that skip a PR before they leave the machine:
 #   - any direct push to main (main only moves through the release PR or a hotfix PR)
+#   - any direct push to develop (develop only moves through a merged PR)
 #   - deleting main or develop
-#   - rewriting history on main or develop (non fast-forward)
-# Enabled by scripts/bootstrap.ps1 with: git config core.hooksPath .githooks
+# Git hands this hook the refs a push really updates, however the command was written (an alias, a script,
+# bash -c, a refspec, remote.<name>.push, --all), so the rule lives here; the agent's shell guard only answers
+# earlier with the branch command.
+# Enabled by scripts/bootstrap.ps1 and puesto.ps1 install with: git config core.hooksPath .githooks
 # Emergency override, stated out loud to the team first: ALLOW_PROTECTED_PUSH=1 git push ...
 [ "$ALLOW_PROTECTED_PUSH" = "1" ] && exit 0
 zero=0000000000000000000000000000000000000000
@@ -22,12 +25,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
   if [ "$branch" = "main" ]; then
     echo "pre-push: refusing a direct push to 'main'. Open a PR (release or hotfix)." >&2
-    status=1
-    continue
+  else
+    echo "pre-push: refusing a direct push to '$branch'. Push your work branch and open a PR: git push -u origin HEAD" >&2
   fi
-  if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
-    echo "pre-push: refusing to rewrite history on '$branch' (non fast-forward)." >&2
-    status=1
-  fi
+  status=1
 done
 exit $status
