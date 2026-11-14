@@ -36,6 +36,28 @@ pwsh tools/work.ps1 mine
 
 Muéstrale sus tareas en lenguaje simple. Cola vacía es normal. Con `modo` `preguntar` o `estricto`, propón el primer issue y espera su sí; con `autonomo`, tómalo.
 
+## 3a. Análisis activo del área (cada sesión, sin cron)
+
+El estudio no espera a que alguien proponga trabajo: cada sesión trae su propio análisis del área de la persona y deja tareas nuevas. No es una tarea programada ni un cron, es parte del arranque. Se hace después del tablero y antes de tomar el issue, y no pasa de unos 15 minutos.
+
+1. **Qué frente toca.** Las áreas salen de `config/ecosistema.json` (`personas.<persona>.areas` y `foco`). Cada área tiene sus frentes y se rotan sesión a sesión:
+
+   | Persona | Frentes que rota |
+   |---|---|
+   | Código, infra, economía (Victor) | sistemas y loop · datos y guardado · rendimiento y carga · pruebas que rompen · economía y monetización · herramientas del estudio |
+   | Arte, UI, audio (Leon) | mundo y mapas · modelos y estilo · UI y sistema de diseño · animación y cámara · audio y música · miniaturas y video |
+   | Crecimiento (Nande) | primera sesión del jugador · social y lobby · live ops y eventos · comunidad y redes · programa de beta |
+
+   El frente de hoy es el siguiente al último analizado. Lo encuentras buscando tu último aviso `análisis` en el tablero (`pwsh tools/board.ps1 read`); si no hay, empieza por el primero.
+
+2. **Qué cambió desde la última sesión.** Commits del juego y de la plantilla que tocan el frente, issues abiertos y cerrados, documentos nuevos en `docs/investigacion/` de `studio` y del juego, novedades del vault (`roblox-vault/trends`, `research`) y archivos nuevos en tu carpeta del Drive.
+
+3. **Una mirada a fondo al frente.** Para los frentes de juego, la skill `roblox-analisis-por-frentes`; si tu agente no la tiene, el mismo método en pequeño: un referente con gameplay en video, lo que ya existe (vault, plantilla, kits) y la comparación con el juego. Para las herramientas del estudio, lo nuevo en skills, plugins, MCP y versiones (skill `mejora-continua` si existe). Nunca se juega un referente por el MCP de escritorio.
+
+4. **Hasta 3 propuestas.** Antes de crear, busca duplicados (`gh issue list --repo <repo> --search "<tema>" --state all`). Cada propuesta es un issue con Meta, No rompas, Hecho cuando, Cómo comprobarlo y Contexto (con la evidencia y sus enlaces comprobados), etiquetas `from-research`, `needs-triage`, tu `owner:` y el `area:`, y `--project` del juego o "Nashei Studios". Las de otra persona se proponen con su `owner:` y se le avisa: decide ella. Con `modo` `estricto` le muestras las propuestas a la persona y las creas después de su sí.
+
+5. **Aviso.** Una línea en el tablero: `análisis <área>/<frente>: <qué encontraste en una frase>; propuestas #a, #b`. Ese aviso es el que lee la próxima sesión para seguir la rotación. Comprobación: el aviso existe y cada propuesta está en el Project con `needs-triage`.
+
 ## 3b. Investigar antes de construir (todo issue, arte o código)
 
 Nada se construye "a lo loco". Al tomar un issue, antes del primer cambio:
@@ -75,6 +97,7 @@ Todo en el repo del juego (`roblox.places[].repo`). Sus scripts mandan sobre est
 1. Cierra la Studio de tu copia de prueba (y tu Rojo, si lo levantaste para editar en vivo).
 2. Deja el aviso en el tablero: qué quedó hecho, qué sigue.
 3. Si la PR ya se mergeó, borra tu worktree y tu rama local.
+4. Lo que la sesión aprendió y le sirve a otros (una trampa, una herramienta, un referente, un número medido) va al documento que corresponde (`docs/` del repo o el vault), no solo al chat. Si abre trabajo, va a una tarea con `from-research`, igual que en el paso 3a.
 
 ## 7. Prohibido
 
