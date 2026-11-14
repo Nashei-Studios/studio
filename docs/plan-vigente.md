@@ -33,13 +33,45 @@ Primero se cierra lo que está a medio camino, después lo nuevo. Dentro de cada
 
 ### Victor y su agente (código, infra, economía)
 
-1. **Cerrar lo abierto.** drain-for-loot PR #113 (arranque temprano, `Refs #89`): medir en la copia de prueba contra los 4,85 s de referencia con el probe `[BOOTTIMING]`, comentar el número en #89, sacar de borrador y mergear. Limpiar su worktree.
-2. **#103**: reaparecer cuando el mar no carga y tratar como muerto a un humanoide sin raíz.
-3. **#87**: prueba de carga con varios clientes (lobby de 20, partidas de 4) en Studio.
-4. **#33**: ajuste de streaming, medido antes y después.
-5. **#36 hecho** (14-11): todo el código heredado pasa por `luau-lsp` en el gate (PR #142, #143, #146, #147 y #149). **#37** (unificar el `DataService` heredado con el de la plantilla) es `needs-team`: espera la decisión del equipo con el análisis a fondo de sus opciones.
-6. **Ola 2**: la investigación de #96 (monetización, PR #160) y de la parte de código de #95 (jefes, PR #151) está hecha y abrió las tareas #152 a #159. Va primero #156: el `ProcessReceipt` heredado pisa al de la plantilla y no es idempotente.
-7. **Seguridad del puesto, hecho** (studio#108, 14-11): texto del tablero con tope y delimitado, guardia de rama en la shell, versión mínima de Claude Code, hooks desde una copia fijada al release, y la regla de ramas en los hooks de git (ADR 0006). Los juegos reciben el `pre-commit` por la plantilla (#266) en su próximo release.
+Hecho al 14-11:
+- drain-for-loot #113, #103 y #36.
+- Seguridad del puesto (studio#108, más las rondas 8 a 10 de la guardia de rama en #159).
+- Investigación de la ola 2: dfl #151, #160, #166 y #167, studio #157 y #158.
+- Dependabot de studio, #28 y #29.
+
+1. **La espera del tablero no muere (studio#161, ley de Victor).**
+   - Va primero, porque sostiene todo lo demás: con un `/goal` activo, el aviso de que alguien respondió en el tablero sobrevive a la falta de memoria, a los cortes de sesión, al límite de 5 h y a la noche.
+   - Lleva investigación con al menos dos opciones, un ADR y una prueba que mata la sesión y comprueba que el aviso igual llega.
+   - Mientras no exista, el tablero se revisa a mano en cada turno.
+2. **Cerrar lo abierto:**
+   - **studio#160:** ronda 11 de la guardia de rama, en la rama `fix/160-guard-round11`. Mergear con el CI en verde y limpiar su worktree.
+   - **Dependabot pendientes:**
+     - drain-for-loot#1 apunta a `main`: hay que cerrarla y dejar que Dependabot la rehaga sobre `develop`.
+     - La #180 de la plantilla tiene el mirror de Notion en rojo: revisar su registro.
+3. **Lo que no depende de una decisión:**
+   - **drain-for-loot:**
+     - #141: el build pisa la copia `places/dev.rbxl`.
+     - #72: PumpRules.
+     - #77 y #59: avisos viejos de `template-sync`. Si ya entraron, se cierran con la prueba.
+   - **studio:**
+     - #85: `Test-AgentLoopClone`.
+     - #91: el install-smoke se pasa del tiempo y gasta minutos.
+   - **plantilla:**
+     - #242: ruta de pwsh en place-sync.
+     - #233: pruebas de PowerShell en cada PR.
+     - #201 a #203: gate de rendimiento, presupuesto de carga y la lista de la prueba privada. Preparan #87 y #89 sin publicar.
+4. **Frentes de Victor (studio#162, dentro de la épica #109):**
+   - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
+   - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
+   - Sale una propuesta `needs-team` por frente, explicada a Victor y a Leon.
+   - Trabajadores Sonnet, como máximo 3 a la vez, midiendo antes la memoria libre.
+5. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
+   - **#37:** opciones 1 + 2. Va primero #156, un solo `ProcessReceipt`.
+   - **La versión privada en una experiencia aparte:** destraba #87, #33 y #89.
+   - **Las 45 tareas de los dos triages.**
+
+   Cuando respondan los dos, se ejecuta lo aprobado en el orden del triage.
+6. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
 
 ### Leon y su agente (mundo, arte, UI, audio)
 
