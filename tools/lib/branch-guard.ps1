@@ -78,7 +78,10 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     $envUnclear = $Command -match '(?i)(?:^|[\s;&|])(?:\$env:)?GIT_(?:DIR|WORK_TREE)\s*='
     # The rule itself lives in .githooks (pre-commit, pre-push), which see the real branch. Anything that would
     # switch those hooks off, or change what a push targets through config, is denied here (issue 108).
-    $hookBypass = $Command -match '(?i)--no-verify|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    # --no-v... covers every abbreviation git accepts for --no-verify (it takes any unique prefix).
+    $hookBypass = $Command -match '(?i)--no-v[a-z-]*|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    # Config keys that switch the hooks off, add a command that may hide a commit or push, or redirect a push.
+    $riskyKey = '(?i)^(?:core\.hookspath|alias\..+|remote\..+\.push|push\..+)(?:=.*)?$'
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
     $dirOf = { param($Match, [string]$Opts)
@@ -120,8 +123,23 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                 }
                 continue calls
             }
+            '^config$' {
+                # Writing a risky key is denied on its own, whatever else the command does: a later command would
+                # run with the hooks off or through the alias. Reading (--get, --list) is fine.
+                $reads = @($words | Where-Object { $_ -match '^(--get(-all|-regexp|-urlmatch)?|--list|-l|get|list)$' }).Count
+                if (-not $reads -and @($plain | Where-Object { $_ -match $riskyKey }).Count) {
+                    $global = @($words | Where-Object { $_ -match '^--(global|system|file)$|^-f$' }).Count -gt 0
+                    $ops += [pscustomobject]@{ op = 'config'; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $true; global = $global; start = -1 }
+                }
+                continue calls
+            }
             '^(commit|push)$' { }
-            default { continue calls }
+            default {
+                # Any other subcommand may be an alias (aliases cannot shadow built-ins, so a real command is safe):
+                # Get-ShellBranchViolation looks it up in the repo's config.
+                $ops += [pscustomobject]@{ op = 'call'; sub = $sub; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $false; start = -1 }
+                continue calls
+            }
         }
         $dir = & $dirOf $m $opts
         $unclear = $envUnclear -or $refUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)') -or
@@ -171,11 +189,21 @@ function Get-ShellBranchViolation { param($Op, $Ecosystem)
        guard when it is chained with && and really names a branch; otherwise both the branch it names and the
        current one count, so a switch that may have failed never opens the way. #>
     $top = Get-OrgCloneTop $Op.dir $Ecosystem
-    if ($Op.unclear) {
-        $where = $top ? $top : $Op.dir
-        return [pscustomobject]@{ top = ("$where" -replace '\\', '/'); name = (Split-Path "$where" -Leaf); branch = '?'; op = $Op.op; unclear = $true }
-    }
+    $unclearAt = { param([string]$Where) [pscustomobject]@{ top = ("$Where" -replace '\\', '/'); name = (Split-Path "$Where" -Leaf); branch = '?'; op = $Op.op; unclear = $true } }
+    # A risky config write counts in an organization clone, or anywhere when it goes to the global config.
+    if ($Op.op -eq 'config') { return ($top -or $Op.global) ? (& $unclearAt ($top ? $top : $Op.dir)) : $null }
+    if ($Op.unclear) { return & $unclearAt ($top ? $top : $Op.dir) }
     if (-not $top) { return $null }
+    if ($Op.op -eq 'call') {
+        # An alias (repo or global config) that runs a commit or a push, a shell (!) or --no-v... fails closed.
+        $alias = (& git -C $top config --get "alias.$($Op.sub)" 2>$null | Out-String).Trim()
+        return ($alias -match '(?i)\b(commit|push)\b|^!|--no-v') ? (& $unclearAt $top) : $null
+    }
+    # The rule lives in .githooks: a clone that has them but does not point core.hooksPath there runs without it.
+    if (Test-Path -LiteralPath (Join-Path $top '.githooks') -PathType Container) {
+        $hooksPath = (& git -C $top config --get core.hooksPath 2>$null | Out-String).Trim()
+        if ($hooksPath -ne '.githooks') { return & $unclearAt $top }
+    }
     $protected = @(Get-ProtectedBranches $Ecosystem)
     $current = Get-CurrentBranch $top
     $topKey = ($top -replace '\\', '/').TrimEnd('/').ToLowerInvariant()
@@ -215,7 +243,7 @@ function Format-ShellBranchReason { param($Violation, [string]$Modo)
     $v = $Violation
     $new = "git -C `"$($v.top)`" switch -c feat/<n>-<slug>"
     if ($v.unclear) {
-        return "Guardia de rama (modo ${Modo}): este git $($v.op) no pasa: o apaga los hooks de git que hacen cumplir la regla (--no-verify, commit -n, hooksPath, ALLOW_PROTECTED_*, GIT_CONFIG_*), o no puedo saber a qué rama va (GIT_DIR, GIT_WORK_TREE, --git-dir, --work-tree, symbolic-ref, update-ref, -c remote.*.push, un refspec ':' o con *, un nombre con variables, o un git dentro de `$( ) o backticks). Córrelo dentro del clon, en tu rama de trabajo, con la rama escrita tal cual y sin esas opciones."
+        return "Guardia de rama (modo ${Modo}): este git $($v.op) no pasa: o apaga los hooks de git que hacen cumplir la regla (--no-verify o una abreviatura, commit -n, hooksPath, ALLOW_PROTECTED_*, GIT_CONFIG_*, escribir core.hooksPath, alias.*, remote.*.push o push.* con git config, un clon cuyo core.hooksPath no es .githooks: corre pwsh tools/puesto.ps1 install, o un alias que hace commit o push), o no puedo saber a qué rama va (GIT_DIR, GIT_WORK_TREE, --git-dir, --work-tree, symbolic-ref, update-ref, -c remote.*.push, un refspec ':' o con *, un nombre con variables, o un git dentro de `$( ) o backticks). Córrelo dentro del clon, en tu rama de trabajo, con la rama escrita tal cual y sin esas opciones."
     }
     $what = $v.op -eq 'push' ? "git push a $($v.branch)" : "git commit en $($v.branch)"
     "Guardia de rama (modo ${Modo}): $what de $($v.name). En develop y main no se hace commit ni push directo; todo entra por PR (docs/en-vivo-y-ramas.md). Toma el issue (work.ps1 claim <n>), crea tu rama con $new (o un worktree) y repite el comando ahí." }
