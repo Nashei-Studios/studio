@@ -56,19 +56,25 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     <# Each `git commit` and `git push` of a Bash or PowerShell command (issue 108, finding 3), in order:
          dir      where it runs: git -C <dir>, else the last cd / pushd / Set-Location / Push-Location before it,
                   else the hook's cwd
-         branch   the branch an earlier `git switch` / `git checkout` of the same command moved to ('' = none)
-         kind     how it moved there: create (-c, -C, -b, -B), switch, or checkout (a word that may be a file)
-         chained  the switch and this op are joined only by && in the same folder, so the op ran on that branch
+         moves    every earlier `git switch` / `git checkout` of the same command, newest first: branch, kind
+                  (create for -c -C -b -B, switch, or checkout: a word that may be a file), dir, and chained
+                  (joined to this op only by &&, so the op ran only if the switch worked)
          targets  for a push, the branches its refspecs name ('*' for --all, --mirror or --branches; empty =
                   the branch it is on)
          unclear  the target cannot be read (GIT_DIR / GIT_WORK_TREE, --git-dir / --work-tree, symbolic-ref or
                   update-ref in the same command, or a branch name that needs the shell to expand it): the guard
                   fails closed on it
-       git can carry a path (/usr/bin/git, "C:\...\git.exe"). Aliases and scripts are not followed, so a command it
-       does not recognise passes. #>
+       git can carry a path (/usr/bin/git, "C:\...\git.exe"). A `git ... commit|push` the parser cannot place gets an
+       unclear op of its own, so it fails closed. Aliases and scripts are not followed. #>
     $quoted = '"[^"]+"|''[^'']+''|[^\s;&|]+'
     $global = "\s+-C\s+(?:$quoted)|\s+-c\s+\S+|\s+--[\w-]+(?:=\S+)?|\s+-[pPh]"
-    $rx = "(?i)(?:^|(?<=[\s;&|(]))(?:`"[^`"]*[/\\]|[^\s;&|`"']*[/\\])?git(?:\.exe)?`"?(?<opts>(?:$global)*)\s+(?<sub>[a-z][\w-]*)(?<rest>[^;&|\n]*)"
+    # git starts a word: after a separator, a quote, a backtick, a brace, = ! or @ (bash -c "git ...", `git ...`,
+    # {git ...}, $x=git ...), with an optional path in front (/usr/bin/git, "C:\...\git.exe").
+    $start = '(?:^|(?<=[\s;&|(`''"{=!@]))'
+    $rx = "(?i)$start(?:`"[^`"]*[/\\]|[^\s;&|`"']*[/\\])?git(?:\.exe)?[`"'``]?(?<opts>(?:$global)*)\s+(?<sub>[a-z][\w-]*)(?<rest>[^;&|\n``}]*)"
+    # Safety net: any `git ... commit|push` whose first non-option word is the subcommand. When it finds more than
+    # the parser placed, the extra ones fail closed instead of slipping through.
+    $rawRx = '(?i)(?<![\w-])git(?:\.exe)?["''`]?(?:\s+-\S+(?:\s+(?!-)\S+)?)*?\s+(?:commit|push)(?![\w-])'
     $envUnclear = $Command -match '(?i)(?:^|[\s;&|])(?:\$env:)?GIT_(?:DIR|WORK_TREE)\s*='
     $dirOf = { param($Match, [string]$Opts)
         $d = ''
@@ -84,9 +90,11 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
         elseif ($Cwd -and -not [IO.Path]::IsPathRooted($d)) { $d = Join-Path $Cwd $d }
         $d -replace '\\', '/' }
     $ops = @(); $refUnclear = $false
-    $move = $null   # the last switch / checkout: branch, kind, dir, end
+    $moves = @()   # every switch / checkout so far: branch, kind, dir, end
     # `continue` inside a PowerShell switch only moves the switch on: the label skips to the next git call.
+    $spans = @()
     :calls foreach ($m in [regex]::Matches($Command, $rx)) {
+        $spans += , @($m.Index, ($m.Index + $m.Length))
         $sub = $m.Groups['sub'].Value.ToLowerInvariant()
         $opts = $m.Groups['opts'].Value
         $words = @($m.Groups['rest'].Value.Trim() -split '\s+' | Where-Object { $_ })
@@ -103,7 +111,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                 if ($raw) {
                     $name = ConvertFrom-ShellWord $raw
                     if ($null -eq $name) { $refUnclear = $true; continue calls }
-                    $move = [pscustomobject]@{ branch = $name; kind = $kind; dir = (& $dirOf $m $opts); end = $m.Index + $m.Length }
+                    $moves += [pscustomobject]@{ branch = $name; kind = $kind; dir = (& $dirOf $m $opts); end = $m.Index + $m.Length }
                 }
                 continue calls
             }
@@ -125,14 +133,21 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                 }
             }
         }
-        $branch = ''; $kind = ''; $chained = $false
-        if ($move -and $move.dir -eq $dir) {
-            $branch = $move.branch; $kind = $move.kind
-            # Only && between them: the op ran only if the switch worked. Any other separator: it may not have.
-            $between = $Command.Substring($move.end, [math]::Max(0, $m.Index - $move.end)) -replace '&&', ''
-            $chained = $between -notmatch '[;|&\n]'
-        }
-        $ops += [pscustomobject]@{ op = $sub; dir = $dir; branch = $branch; kind = $kind; chained = $chained; targets = $targets; unclear = $unclear }
+        # Every earlier switch, newest first, with whether only && joins it to this op (then the op ran only if the
+        # switch worked). Which of them touch this op's repo is decided by repo, not by folder text, in
+        # Get-ShellBranchViolation.
+        $before = @(for ($k = $moves.Count - 1; $k -ge 0; $k--) {
+                $mv = $moves[$k]
+                $between = $Command.Substring($mv.end, [math]::Max(0, $m.Index - $mv.end)) -replace '&&', ''
+                [pscustomobject]@{ branch = $mv.branch; kind = $mv.kind; dir = $mv.dir; chained = ($between -notmatch '[;|&\n]') }
+            })
+        $ops += [pscustomobject]@{ op = $sub; dir = $dir; moves = $before; targets = $targets; unclear = $unclear }
+    }
+    # A raw match inside a git call the parser already read (a commit message that says "git push", a --grep)
+    # is that call's text, not a command of its own.
+    foreach ($r in [regex]::Matches($Command, $rawRx)) {
+        if (@($spans | Where-Object { $r.Index -ge $_[0] -and $r.Index -lt $_[1] }).Count) { continue }
+        $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
 
@@ -149,14 +164,26 @@ function Get-ShellBranchViolation { param($Op, $Ecosystem)
     if (-not $top) { return $null }
     $protected = @(Get-ProtectedBranches $Ecosystem)
     $current = Get-CurrentBranch $top
-    $tracked = ''
-    if ($Op.branch) {
-        # A bare `checkout <word>` may name a file: it counts only when that branch exists.
-        $isBranch = $Op.kind -ne 'checkout'
-        if (-not $isBranch) { & git -C $top rev-parse --verify --quiet "refs/heads/$($Op.branch)" *> $null; $isBranch = $LASTEXITCODE -eq 0 }
-        if ($isBranch) { $tracked = $Op.branch }
+    $topKey = ($top -replace '\\', '/').TrimEnd('/').ToLowerInvariant()
+    # The newest earlier switch that touches this repo (decided by repo: another folder of the same clone counts,
+    # and a folder whose repo cannot be read is treated as this one, to stay on the safe side).
+    $on = @($current)
+    foreach ($mv in @($Op.moves)) {
+        $mvTop = (Test-Path -LiteralPath $mv.dir -PathType Container) ? (& git -C $mv.dir rev-parse --show-toplevel 2>$null | Out-String).Trim() : ''
+        if ($mvTop -and ($mvTop -replace '\\', '/').TrimEnd('/').ToLowerInvariant() -ne $topKey) { continue }
+        # A bare `checkout <word>` may name a file. It names a branch when the word is protected (checkout creates
+        # it from origin), or exists locally or on a remote.
+        $isBranch = $mv.kind -ne 'checkout' -or $mv.branch -in $protected
+        if (-not $isBranch) {
+            & git -C $top rev-parse --verify --quiet "refs/heads/$($mv.branch)" *> $null
+            $isBranch = $LASTEXITCODE -eq 0 -or [bool]((& git -C $top for-each-ref --format='%(refname)' "refs/remotes/*/$($mv.branch)" 2>$null | Out-String).Trim())
+        }
+        if ($isBranch) {
+            # Joined only by && in a repo it could read: the op ran on that branch. Otherwise both count.
+            $on = ($mv.chained -and $mvTop) ? @($mv.branch) : @($mv.branch, $current)
+        }
+        break
     }
-    $on = if ($tracked -and $Op.chained) { @($tracked) } elseif ($tracked) { @($tracked, $current) } else { @($current) }
     $names = if ($Op.op -eq 'push' -and @($Op.targets) -contains '*') { $protected }
              elseif ($Op.op -eq 'push' -and @($Op.targets).Count) { @($Op.targets) }
              else { $on }
