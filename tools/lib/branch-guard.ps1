@@ -81,7 +81,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # --no-v... covers every abbreviation git accepts for --no-verify (it takes any unique prefix).
     $hookBypass = $Command -match '(?i)--no-v[a-z-]*|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
     # Config keys that switch the hooks off, add a command that may hide a commit or push, or redirect a push.
-    $riskyKey = '(?i)^(?:core\.hookspath|alias\..+|remote\..+\.push|push\..+)(?:=.*)?$'
+    $riskyKey = '(?i)^(?:core\.hookspath|alias\..+|remote\..+\.push|push\..+|include\..+|includeif\..+)(?:=.*)?$'
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
     $dirOf = { param($Match, [string]$Opts)
@@ -126,8 +126,11 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
             '^config$' {
                 # Writing a risky key is denied on its own, whatever else the command does: a later command would
                 # run with the hooks off or through the alias. Reading (--get, --list) is fine.
-                $reads = @($words | Where-Object { $_ -match '^(--get(-all|-regexp|-urlmatch)?|--list|-l|get|list)$' }).Count
-                if (-not $reads -and @($plain | Where-Object { $_ -match $riskyKey }).Count) {
+                # A write is a risky key followed by a value, or any write verb or flag; a lone key is a read.
+                $keyAt = [array]::FindIndex([string[]]$plain, [Predicate[string]] { param($x) $x -match $riskyKey })
+                $writeVerb = @($words | Where-Object { $_ -match '^(set|unset|edit|rename-section|remove-section|--unset(-all)?|--add|--replace-all|--rename-section|--remove-section|-e|--edit)$' }).Count
+                $writes = $keyAt -ge 0 -and ($writeVerb -or $keyAt + 1 -lt $plain.Count -or $plain[$keyAt] -match '=')
+                if ($writes) {
                     $global = @($words | Where-Object { $_ -match '^--(global|system|file)$|^-f$' }).Count -gt 0
                     $ops += [pscustomobject]@{ op = 'config'; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $true; global = $global; start = -1 }
                 }
@@ -137,7 +140,10 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
             default {
                 # Any other subcommand may be an alias (aliases cannot shadow built-ins, so a real command is safe):
                 # Get-ShellBranchViolation looks it up in the repo's config.
-                $ops += [pscustomobject]@{ op = 'call'; sub = $sub; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $false; start = -1 }
+                # It carries the same red flags as a commit or push: hooks off, a hidden target, an alias or a push
+                # redirect set through -c for this one call.
+                $callUnclear = $envUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)|-c\s+\S*(?:alias\.|core\.hookspath|remote\.[^\s=]*\.push|push\.|include)')
+                $ops += [pscustomobject]@{ op = 'call'; sub = $sub; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $callUnclear; start = -1 }
                 continue calls
             }
         }
@@ -195,9 +201,10 @@ function Get-ShellBranchViolation { param($Op, $Ecosystem)
     if ($Op.unclear) { return & $unclearAt ($top ? $top : $Op.dir) }
     if (-not $top) { return $null }
     if ($Op.op -eq 'call') {
-        # An alias (repo or global config) that runs a commit or a push, a shell (!) or --no-v... fails closed.
+        # Any alias (repo or global config) fails closed: an alias can chain to another one, run a shell (!) or
+        # carry flags, and following that is not worth the risk in an organization clone. Plain commands pass.
         $alias = (& git -C $top config --get "alias.$($Op.sub)" 2>$null | Out-String).Trim()
-        return ($alias -match '(?i)\b(commit|push)\b|^!|--no-v') ? (& $unclearAt $top) : $null
+        return $alias ? (& $unclearAt $top) : $null
     }
     # The rule lives in .githooks: a clone that has them but does not point core.hooksPath there runs without it.
     if (Test-Path -LiteralPath (Join-Path $top '.githooks') -PathType Container) {

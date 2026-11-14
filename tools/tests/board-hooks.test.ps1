@@ -370,6 +370,14 @@ try {
         Assert ((& $guardShell 'Bash' 'git ci -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: an alias that runs a commit fails closed'
         & git -C $guardOrg config --unset alias.ci
         Assert ((& $guardShell 'Bash' 'git status && git log -1' "$guardOrg").Trim() -eq '') 'shell: plain subcommands with no alias pass'
+        # Sixth review: any alias fails closed (chains, shells, flags), -c on any call, and config writes in every form.
+        & git -C $guardOrg config alias.st 'status'
+        Assert ((& $guardShell 'Bash' 'git st' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: any alias in an organization clone fails closed'
+        & git -C $guardOrg config --unset alias.st
+        foreach ($bypass in @('git -c alias.x=push x origin develop', 'git config include.path /tmp/evil', 'git config set alias.ci commit', 'git config --get-all x alias.ci commit')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git config get core.hooksPath; git config --get-regexp alias' "$guardOrg").Trim() -eq '') 'shell: reading with the new get syntax and --get-regexp passes'
         New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
         & git -C $guardOrg config core.hooksPath .githooks
