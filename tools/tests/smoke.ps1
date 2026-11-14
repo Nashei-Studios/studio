@@ -21,7 +21,7 @@ $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The scripts parse.
-    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks') {
+    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks', 'lib/board-watch', 'board-watch') {
         $errors = $null
         [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $tools "$name.ps1"), [ref]$null, [ref]$errors)
         Assert ($errors.Count -eq 0) "$name.ps1 parses"
@@ -109,6 +109,11 @@ try {
     # 4h. The branch rule enforced by git (.githooks pre-commit and pre-push, ADR 0006).
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'git-hooks.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'git hooks tests pass'
+
+    # 4i. The durable board wait (issue 161, ADR 0007): decision, scheduler plan per system and the command end to end.
+    $watchOut = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board-watch.test.ps1') 2>&1
+    Assert ($LASTEXITCODE -eq 0) 'board-watch tests pass'
+    $watchOut | Where-Object { "$_" -notmatch '^ok ' -and "$_" -ne 'ALL PASS' } | ForEach-Object { "      $_" }   # what failed, on the system that failed
 
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results

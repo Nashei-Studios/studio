@@ -207,6 +207,17 @@ try {
     & $setModo 'estricto'
 
     Assert ((Invoke-Hook 'cierre' @{ session_id = 'A'; stop_hook_active = $false }).Trim() -eq '') 'with nothing touched the turn ends freely'
+    # Unread posts seen by the durable wait (issue 161): the turn does not end before this session reads them.
+    $watchSession = 'aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb'
+    New-Item -ItemType Directory -Force (Join-Path $state 'espera') | Out-Null
+    $watchFile = Join-Path $state "espera/$watchSession.json"
+    Set-Content -LiteralPath $watchFile '{"session":"aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb","pendingSince":null}'
+    Assert ((Invoke-Hook 'cierre' @{ session_id = $watchSession; stop_hook_active = $false }).Trim() -eq '') 'a watch with nothing pending does not hold the turn'
+    Set-Content -LiteralPath $watchFile '{"session":"aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb","pendingSince":"2026-11-14T12:00:00Z"}'
+    $stop = Invoke-Hook 'cierre' @{ session_id = $watchSession; stop_hook_active = $false } | ConvertFrom-Json
+    Assert ($stop.decision -eq 'block' -and $stop.reason -match 'board-watch\.ps1' -and $stop.reason -match "inbox -Sesion $watchSession") 'unread board posts hold the turn and name the command that reads them'
+    Assert ((Invoke-Hook 'cierre' @{ session_id = $watchSession; stop_hook_active = $true }).Trim() -eq '') 'the second time the turn ends'
+    Remove-Item -LiteralPath $watchFile
     Invoke-Hook 'registro' @{ session_id = 'A'; tool_name = 'mcp__Roblox_Studio__execute_luau'; tool_input = @{ studio_id = 'st-1'; datamodel_type = 'Edit'; code = $code } } | Out-Null
     Invoke-Hook 'registro' @{ session_id = 'A'; cwd = $ownRepo; tool_name = 'Bash'; tool_input = @{ command = 'git push origin main' } } | Out-Null
     Assert (@(Get-TouchEntries $state).Count -eq 1) 'registro logs an Edit-mode execute_luau and skips a push to a personal repo'
