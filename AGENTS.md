@@ -44,4 +44,4 @@ Cuando tu persona lo dice, ejecutas la skill [`empezar-a-trabajar`](.claude/skil
 
 En corto: actualizas y revisas el puesto, lees el tablero y la cola; arte va a la place compartida con aviso de zona; código va en rama `feat/<n>-<tema>`, con copia local de la place (`places/dev.rbxl`) y tu Rojo propio; PR a `develop`; al cerrar, apagas tu Rojo y avisas. Nunca: Rojo a la place compartida desde otra computadora, scripts editados en Studio, commits en `develop` o `main`.
 
-La guardia de rama (`puesto.ps1 install`) deniega o pregunta, según tu `modo`, una edición en `develop` o `main` de un clon de la organización; su mensaje trae el comando para crear la rama.
+La guardia de rama (`puesto.ps1 install`) deniega o pregunta, según tu `modo`, una edición en `develop` o `main` de un clon de la organización, y también un `git commit` o `git push` hacia esas ramas desde Bash o PowerShell; su mensaje trae el comando para crear la rama.
