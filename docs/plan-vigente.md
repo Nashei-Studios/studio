@@ -10,7 +10,9 @@ Una línea basta. Desde la carpeta de `studio` o desde cualquier repo de Nashei:
 /goal Lee docs/plan-vigente.md de Nashei-Studios/studio y trabaja el plan en orden hasta dejar cada punto verificado
 ```
 
-El agente hace lo de la skill [`empezar-a-trabajar`](../.claude/skills/empezar-a-trabajar/SKILL.md): actualiza los repos, corre `tools/puesto.ps1 check`, lee el tablero (studio#1 y el hilo del juego) y toma el primer issue de su persona con `tools/work.ps1 claim N`, que mueve la tarjeta a "En curso".
+El agente hace lo de la skill [`empezar-a-trabajar`](../.claude/skills/empezar-a-trabajar/SKILL.md): actualiza los repos, corre `tools/puesto.ps1 check`, lee el tablero (studio#1 y el hilo del juego), hace el análisis activo de un frente del área de su persona (paso 3a: hasta 3 tareas nuevas con `from-research` y `needs-triage`, sin cron) y toma el primer issue de su persona con `tools/work.ps1 claim N`, que mueve la tarjeta a "En curso".
+
+La investigación de fondo del estudio vive en la épica studio#109 y sus documentos en [`docs/investigacion/`](investigacion/). Las tareas que salen de ahí entran al Project con `needs-triage` y cada dueño las valida antes de que entren a su orden de trabajo.
 
 ## Qué Studio es cuál
 
