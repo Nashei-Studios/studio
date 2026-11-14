@@ -285,12 +285,17 @@ try {
         Assert ((Invoke-Hook 'rama' @{ session_id = 'G'; tool_name = 'Edit'; tool_input = @{} }).Trim() -eq '') 'rama: a call that names no file passes'
 
         # 11c. Branch guard from the shell (issue 108, finding 3): git commit and git push on a protected branch.
-        $ops = @(Get-ShellGitOps 'cd "D:/r/mi repo" && git add . && git commit -m "x" && git -C D:/other push origin HEAD:develop' 'D:/cwd')
-        Assert ($ops.Count -eq 2 -and $ops[0].op -eq 'commit' -and $ops[0].dir -eq 'D:/r/mi repo') 'shell: a commit runs where the last cd went'
-        Assert ($ops[1].op -eq 'push' -and $ops[1].dir -eq 'D:/other' -and ($ops[1].targets -join ',') -eq 'develop') 'shell: git -C wins and HEAD:develop targets develop'
-        Assert (@(Get-ShellGitOps 'git commit-tree abc; git log --oneline; echo commit' 'D:/cwd').Count -eq 0) 'shell: commit-tree, log and a bare word are not commits'
-        Assert ((@(Get-ShellGitOps 'Set-Location sub; git push -u origin feat/1-x +main refs/heads/develop' 'D:/cwd')[0].targets -join ',') -eq 'feat/1-x,main,develop') 'shell: Set-Location is followed and every refspec is a target'
-        Assert (@(Get-ShellGitOps 'git -c user.name=x commit -m y' 'D:/cwd')[0].dir -eq 'D:/cwd') 'shell: git -c options are skipped and the cwd is used'
+        # Rooted on every system (a D:/ path is relative on Linux and macOS).
+        $w = $work -replace '\\', '/'
+        $ops = @(Get-ShellGitOps "cd `"$w/r/mi repo`" && git add . && git commit -m `"x`" && git -C $w/other push origin HEAD:develop" "$w/cwd")
+        Assert ($ops.Count -eq 2 -and $ops[0].op -eq 'commit' -and $ops[0].dir -eq "$w/r/mi repo") 'shell: a commit runs where the last cd went'
+        Assert ($ops[1].op -eq 'push' -and $ops[1].dir -eq "$w/other" -and ($ops[1].targets -join ',') -eq 'develop') 'shell: git -C wins and HEAD:develop targets develop'
+        Assert (@(Get-ShellGitOps 'git commit-tree abc; git log --oneline; echo commit' "$w/cwd").Count -eq 0) 'shell: commit-tree, log and a bare word are not commits'
+        Assert ((@(Get-ShellGitOps 'Set-Location sub; git push -u origin feat/1-x +main refs/heads/develop' "$w/cwd")[0].targets -join ',') -eq 'feat/1-x,main,develop') 'shell: Set-Location is followed and every refspec is a target'
+        Assert (@(Get-ShellGitOps 'git -c user.name=x commit -m y' "$w/cwd")[0].dir -eq "$w/cwd") 'shell: git -c options are skipped and the cwd is used'
+        Assert (@(Get-ShellGitOps '/usr/bin/git push origin main' "$w/cwd").Count -eq 1 -and @(Get-ShellGitOps '& "C:\Program Files\Git\cmd\git.exe" push origin main' "$w/cwd").Count -eq 1) 'shell: git with a path in front is still git'
+        Assert ((@(Get-ShellGitOps "git push origin 'main' `"develop`"" "$w/cwd")[0].targets -join ',') -eq 'main,develop') 'shell: quotes around a branch name are stripped'
+        Assert (@(Get-ShellGitOps 'git push origin $BRANCH' "$w/cwd")[0].unclear) 'shell: a variable as the target is unclear'
         # The test repo has no commits: symbolic-ref moves an unborn HEAD, where switch would fail.
         & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
         $guardShell ={ param([string]$tool, [string]$cmd, [string]$cwd)
@@ -316,6 +321,8 @@ try {
         Assert ((& $guardShell 'Bash' 'git push --all origin' $guardOrg) -match '"permissionDecision":"deny"') 'shell: push --all reaches the protected branches'
         Assert ((& $guardShell 'Bash' 'git push --mirror origin' $guardOrg) -match '"permissionDecision":"deny"') 'shell: push --mirror too'
         Assert ((& $guardShell 'Bash' 'git switch develop && git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a switch to develop earlier in the command counts'
+        Assert ((& $guardShell 'Bash' '/usr/bin/git push origin main' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a path-qualified git is guarded'
+        Assert ((& $guardShell 'Bash' 'git push origin "develop"' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a quoted protected target is guarded'
         Assert ((& $guardShell 'Bash' 'git checkout -B main && git push' $guardOrg) -match '"permissionDecision":"deny"') 'shell: checkout -B main then push counts'
         Assert ((& $guardShell 'Bash' 'git checkout -- src/x.luau && git commit -m x' $guardOrg).Trim() -eq '') 'shell: checkout of a file keeps the work branch'
         Assert ((& $guardShell 'Bash' 'GIT_DIR=/elsewhere/.git git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: GIT_DIR makes the target unknown and fails closed'
@@ -323,6 +330,8 @@ try {
         Assert ((& $guardShell 'Bash' 'git symbolic-ref HEAD refs/heads/develop && git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: symbolic-ref with a commit fails closed'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
         Assert ((& $guardShell 'Bash' 'git switch -c feat/2-y && git commit -m x && git push -u origin feat/2-y' $guardOrg).Trim() -eq '') 'shell: creating a work branch first lets the commit and push through'
+        Assert ((& $guardShell 'Bash' 'git switch -c feat/2-y; git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a switch not chained with && does not lift the guard (it may have failed)'
+        Assert ((& $guardShell 'Bash' 'git checkout feat/none && git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: checkout of a branch that does not exist does not lift the guard'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
 
         # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
