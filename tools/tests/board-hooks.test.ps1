@@ -398,6 +398,14 @@ try {
             Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
         }
         Assert ((& $guardShell 'Bash' 'git -c "user.name=Victor R" commit -m y' "$guardOrg").Trim() -eq '') 'shell: a quoted allowlisted -c value with a space passes'
+        # Eleventh review: quotes and escapes glued inside a word, and a -c value that expands into a pair.
+        foreach ($bypass in @("git c''ommit --no-''verify -m y", "git -c'' core.hooks''Path=/dev/null commit -m y", 'git c\ommit -n -m y', 'git -c ''user.name=a b'' -c $kv commit -m y')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'PowerShell' 'git c`ommit -n -m y' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a PowerShell backtick inside a subcommand fails closed'
+        foreach ($ok in @("git commit -m `"it's a fix, don't push yet`"", 'git commit -m ''docs: explain `-c` and `push`''',"git log --format='%h %s' -3")) {
+            Assert ((& $guardShell 'Bash' $ok "$guardOrg").Trim() -eq '') "shell: quotes and backticks around whole words pass ($ok)"
+        }
         New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
         & git -C $guardOrg config core.hooksPath .githooks
