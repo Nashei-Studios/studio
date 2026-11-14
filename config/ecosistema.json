@@ -212,6 +212,10 @@
       "permisos": ["Screen Recording", "Accessibility"]
     }
   },
+  "agente": {
+    "claude_code_minimo": "2.1.295",
+    "motivo": "Los hooks del estudio usan onFailure: block (el candado falla cerrado, desde 2.1.295) y el campo if (la guardia de rama en la shell). Con una versión anterior Claude Code los ignora en silencio."
+  },
   "transcripcion": {
     "motor": "whisper-cli",
     "modelo": "~/Nashei/models/whisper/ggml-small.bin",
