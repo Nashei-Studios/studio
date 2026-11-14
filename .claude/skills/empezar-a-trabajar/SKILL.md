@@ -36,6 +36,15 @@ pwsh tools/work.ps1 mine
 
 Muéstrale sus tareas en lenguaje simple. Cola vacía es normal. Con `modo` `preguntar` o `estricto`, propón el primer issue y espera su sí; con `autonomo`, tómalo.
 
+**Con un `/goal` activo, la espera del tablero vive fuera de la sesión** (ley de Victor del 14-11-2026, ADR 0007). Una vez por meta:
+
+```
+pwsh tools/board-watch.ps1 arm -Sesion <id de la sesión> -Meta "<texto de la meta>" [-Tableros <owner/repo#issue del hilo del juego>]
+pwsh tools/board-watch.ps1 wait -Sesion <id de la sesión>     # la única espera de fondo; relánzala cada vez que vuelva
+```
+
+Si la sesión muere (memoria, corte, límite de 5 h, noche), la tarea del sistema la retoma con la meta cuando alguien publica. Comprobación: `pwsh tools/board-watch.ps1 status` muestra `scheduler: installed` y tu espera; si dice `MISSING`, corre `pwsh tools/puesto.ps1 install`. Al cumplir la meta: `pwsh tools/board-watch.ps1 disarm -Sesion <id>`. Si algo detiene la espera, se dice en el mismo turno y se relanza sin esperar a que lo pidan.
+
 ## 3a. Análisis activo del área (cada sesión, sin cron)
 
 El estudio no espera a que alguien proponga trabajo: cada sesión trae su propio análisis del área de la persona y deja tareas nuevas. No es una tarea programada ni un cron, es parte del arranque. Se hace después del tablero y antes de tomar el issue, y no pasa de unos 15 minutos.

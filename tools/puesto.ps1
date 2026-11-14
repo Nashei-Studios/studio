@@ -388,6 +388,17 @@ if (Test-Cmd claude) {
     $hooksOk = -not $why -and -not $missingHooks.Count
     $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
     Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado, guardia de rama)' $hooksDetail
+    # The durable board wait (issue 161, ADR 0007): a scheduler entry that runs board-watch.ps1 tick. Like the
+    # hooks, it runs with the person's rights on a timer, so it only ever runs from the pinned copy.
+    $watchCli = Join-Path $pinnedDir 'tools/board-watch.ps1'
+    if (-not (Test-Path -LiteralPath $watchCli)) {
+        Add-Result 'espera-tablero' 'INFO' 'Espera del tablero que sobrevive a la sesión' 'llega con el próximo release de studio; después corre pwsh tools/puesto.ps1 install'
+    }
+    else {
+        if ($doInstall) { & pwsh -NoProfile -File $watchCli install 2>&1 | Out-Null }
+        $watchOk = [bool]((& pwsh -NoProfile -File $watchCli status 2>$null | Select-Object -First 1) -match ': installed$')
+        Add-Result 'espera-tablero' ($watchOk ? 'PASA' : 'PERSONA') 'Espera del tablero que sobrevive a la sesión' ($watchOk ? 'tarea del sistema registrada' : 'falta la tarea del sistema: corre pwsh tools/puesto.ps1 install')
+    }
 } else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----

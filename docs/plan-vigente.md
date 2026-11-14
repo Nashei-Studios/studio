@@ -39,16 +39,17 @@ Hecho al 14-11:
 - Investigación de la ola 2: dfl #151, #160, #166 y #167, studio #157 y #158.
 - Dependabot de studio, #28 y #29.
 
-1. **La espera del tablero no muere (studio#161, ley de Victor).**
-   - Va primero, porque sostiene todo lo demás: con un `/goal` activo, el aviso de que alguien respondió en el tablero sobrevive a la falta de memoria, a los cortes de sesión, al límite de 5 h y a la noche.
-   - Lleva investigación con al menos dos opciones, un ADR y una prueba que mata la sesión y comprueba que el aviso igual llega.
-   - Mientras no exista, el tablero se revisa a mano en cada turno.
-2. **Cerrar lo abierto:**
+1. **La espera del tablero no muere (studio#161, ley de Victor): hecho el 14-11.**
+   - `tools/board-watch.ps1` (ADR 0007): una tarea oculta del sistema lee el tablero cada 2 minutos y retoma con la meta la sesión que murió o quedó quieta.
+   - Toda sesión con `/goal` corre `arm` y usa `board-watch.ps1 wait` como su espera (skill `empezar-a-trabajar`, paso 3).
+   - En el equipo de Victor la tarea ya está registrada. A los demás les llega con el release del lunes y `tools/puesto.ps1 install`.
+2. **La sesión de Leon tarda y gasta de más (studio#165, `needs-team`).** Su agente mide el piso de contexto de su equipo; Leon y Victor responden las opciones A a E (carril corto, análisis diario, modelo por tipo de trabajo, MCP por tarea).
+3. **Cerrar lo abierto:**
    - **studio#160:** ronda 11 de la guardia de rama, en la rama `fix/160-guard-round11`. Mergear con el CI en verde y limpiar su worktree.
    - **Dependabot pendientes:**
      - drain-for-loot#1 apunta a `main`: hay que cerrarla y dejar que Dependabot la rehaga sobre `develop`.
      - La #180 de la plantilla tiene el mirror de Notion en rojo: revisar su registro.
-3. **Lo que no depende de una decisión:**
+4. **Lo que no depende de una decisión:**
    - **drain-for-loot:**
      - #141: el build pisa la copia `places/dev.rbxl`.
      - #72: PumpRules.
@@ -60,18 +61,18 @@ Hecho al 14-11:
      - #242: ruta de pwsh en place-sync.
      - #233: pruebas de PowerShell en cada PR.
      - #201 a #203: gate de rendimiento, presupuesto de carga y la lista de la prueba privada. Preparan #87 y #89 sin publicar.
-4. **Frentes de Victor (studio#162, dentro de la épica #109):**
+5. **Frentes de Victor (studio#162, dentro de la épica #109):**
    - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
    - Sale una propuesta `needs-team` por frente, explicada a Victor y a Leon.
    - Trabajadores Sonnet, como máximo 3 a la vez, midiendo antes la memoria libre.
-5. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
+6. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
    - **#37:** opciones 1 + 2. Va primero #156, un solo `ProcessReceipt`.
    - **La versión privada en una experiencia aparte:** destraba #87, #33 y #89.
    - **Las 45 tareas de los dos triages.**
 
    Cuando respondan los dos, se ejecuta lo aprobado en el orden del triage.
-6. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
+7. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
 
 ### Leon y su agente (mundo, arte, UI, audio)
 
