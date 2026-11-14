@@ -111,8 +111,9 @@ try {
     Assert ($LASTEXITCODE -eq 0) 'git hooks tests pass'
 
     # 4i. The durable board wait (issue 161, ADR 0007): decision, scheduler plan per system and the command end to end.
-    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board-watch.test.ps1') | Out-Null
+    $watchOut = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board-watch.test.ps1') 2>&1
     Assert ($LASTEXITCODE -eq 0) 'board-watch tests pass'
+    $watchOut | Where-Object { "$_" -notmatch '^ok ' -and "$_" -ne 'ALL PASS' } | ForEach-Object { "      $_" }   # what failed, on the system that failed
 
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results

@@ -31,7 +31,10 @@ param(
     [string]$Despertar,
     # Folder with comments-<owner>_<name>-<issue>.json and agents.json standing in for GitHub and `claude agents`.
     [string]$Simulado,
-    [string]$Login
+    [string]$Login,
+    # install only: register the task from this copy although it is not the one pinned to the release. The person
+    # decides it knowingly: whatever lands on this copy's branch then runs on a timer with their rights (issue 108).
+    [switch]$SinFijar
 )
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -126,7 +129,7 @@ function Read-Inbox { param($Watch, [string]$Path)
         $board.since = Format-WatchTime (ConvertTo-WatchTime $last.createdAt)
     }
     $Watch.pendingSince = $null; $Watch.wakes = 0; $Watch.lastWakeAt = $null
-    Write-BoardWatch $Path $Watch
+    Save-ArmedWatch $Path $Watch
     @{ count = $pending.posts.Count; text = ($text -join "`n") } }
 
 function Add-TickLog { param($Entry)
@@ -188,7 +191,7 @@ switch ($Action) {
         Write-BoardWatch $path $watch
         "armed $($watch.session): $(@($watch.boards | ForEach-Object { "$($_.repo)#$($_.issue)" }) -join ', ') until $($watch.expiresAt)"
         if (-not $Simulado -and -not (Test-WatchSchedule (Get-SchedulePlan))) {
-            "WARNING: the scheduler entry is missing, so nothing resumes this session if it dies. Run: $(Get-SelfCmd 'install')"
+            'WARNING: the scheduler entry is missing or points at another copy, so nothing resumes this session if it dies. Run: pwsh tools/puesto.ps1 install'
         }
         "In-session wait (one background command, start it again when it returns): $(Get-SelfCmd "wait -Sesion $($watch.session)")"
     }
@@ -249,12 +252,15 @@ switch ($Action) {
                         $cmd = Get-WakeCommand $watch (Get-SelfCmd "inbox -Sesion $($watch.session)") ($Despertar ? $Despertar : 'claude')
                         $watch.wakes = [int]$watch.wakes + 1
                         $watch.lastWakeAt = Format-WatchTime $now
-                        if (-not (Test-Path -LiteralPath $cmd.cwd -PathType Container)) { $entry.exit = -1; $entry.out = "la carpeta $($cmd.cwd) ya no existe" }
+                        $program = (Get-Command $cmd.exe -ErrorAction SilentlyContinue | Select-Object -First 1)?.Source
+                        if (-not $program) { $entry.exit = -1; $entry.out = "no encuentro $($cmd.exe) en el PATH de la tarea" }
+                        elseif (-not (Test-WakeProgram $program)) { $entry.exit = -1; $entry.out = "$program es un lanzador .cmd: no le paso argumentos; instala el Claude Code nativo (claude install)" }
+                        elseif (-not (Test-Path -LiteralPath $cmd.cwd -PathType Container)) { $entry.exit = -1; $entry.out = "la carpeta $($cmd.cwd) ya no existe" }
                         else {
                             Push-Location -LiteralPath $cmd.cwd
                             try {
                                 $wakeArgs = $cmd.args
-                                $out = (& $cmd.exe @wakeArgs 2>&1 | Out-String).Trim()
+                                $out = (& $program @wakeArgs 2>&1 | Out-String).Trim()
                                 $entry.exit = $LASTEXITCODE
                                 $entry.out = $out.Substring(0, [Math]::Min(300, $out.Length))
                             }
@@ -262,7 +268,7 @@ switch ($Action) {
                         }
                     }
                 }
-                Write-BoardWatch $path $watch
+                Save-ArmedWatch $path $watch
                 # Quiet passes are not logged: the log shows what happened, not that time went by.
                 if ($decision.action -ne 'none') { Add-TickLog $entry }
             }
@@ -270,6 +276,10 @@ switch ($Action) {
         }
     }
     'install' {
+        $pinnedDir = Join-Path (Split-Path $state -Parent) 'hooks/studio'
+        if (-not $SinFijar -and -not (Test-PinnedScript $PSCommandPath $pinnedDir)) {
+            Stop-WithError "this copy is not the one pinned to the release ($pinnedDir), and the task would run whatever lands on its branch. Run: pwsh tools/puesto.ps1 install (it pins the copy and registers the task from there). To register this copy anyway, knowingly: add -SinFijar"
+        }
         $plan = Get-SchedulePlan
         $why = Install-WatchSchedule $plan
         if ($why) { Stop-WithError $why }
@@ -283,11 +293,11 @@ switch ($Action) {
     }
     'status' {
         $plan = Get-SchedulePlan
-        "scheduler ($($plan.kind)): $((Test-WatchSchedule $plan) ? 'installed' : "MISSING, run: $(Get-SelfCmd 'install')")"
+        "scheduler ($($plan.kind)): $((Test-WatchSchedule $plan) ? 'installed' : 'MISSING for this copy, run: pwsh tools/puesto.ps1 install')"
         $watches = Get-BoardWatches $state
         if (-not $watches.Count) { 'no watches' }
         foreach ($w in $watches) {
-            "watch $($w.session) until $($w.expiresAt) | pending since $($w.pendingSince ? $w.pendingSince : '-') | wakes $($w.wakes) | $(@($w.boards | ForEach-Object { "$($_.repo)#$($_.issue)" }) -join ', ') | goal: $($w.meta)"
+            "watch $($w.session) until $(Format-WatchTime (ConvertTo-WatchTime $w.expiresAt)) | pending since $($w.pendingSince ? (Format-WatchTime (ConvertTo-WatchTime $w.pendingSince)) : '-') | wakes $($w.wakes) | $(@($w.boards | ForEach-Object { "$($_.repo)#$($_.issue)" }) -join ', ') | goal: $($w.meta)"
         }
         $log = Join-Path (Get-WatchDir $state) 'tick.jsonl'
         if (Test-Path -LiteralPath $log) { 'last passes with something to say:'; Get-Content -LiteralPath $log -Tail 5 -Encoding utf8 }

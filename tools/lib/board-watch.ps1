@@ -33,8 +33,9 @@ function Get-WatchPath { param([string]$StateDir, [string]$Session)
     Join-Path (Get-WatchDir $StateDir) "$($Session.ToLowerInvariant()).json" }
 
 function Format-WatchGoal { param([string]$Meta)
-    <# One line, no control characters, capped: it travels as a command-line argument. #>
-    $clean = ("$Meta" -replace '[\x00-\x1F\x7F]+', ' ').Trim()
+    <# One line, capped, without control characters or the characters a command shell gives a meaning to: it
+       travels as a command-line argument of `claude`. #>
+    $clean = (("$Meta" -replace '[\x00-\x1F\x7F]+', ' ') -replace '["&|<>^%!`]', '').Trim()
     if ($clean.Length -gt 600) { $clean = $clean.Substring(0, 600) }
     $clean }
 
@@ -57,6 +58,11 @@ function Write-BoardWatch { param([string]$Path, $Watch)
     $tmp = "$Path.tmp-$PID"
     $Watch | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $tmp -Encoding utf8
     Move-Item -LiteralPath $tmp -Destination $Path -Force }
+
+function Save-ArmedWatch { param([string]$Path, $Watch)
+    <# A pass or a read that started before `disarm` must not write the watch back: a disarmed session would be
+       resumed later. Only a watch whose file is still there is saved. #>
+    if (Test-Path -LiteralPath $Path) { Write-BoardWatch $Path $Watch } }
 
 function Get-BoardWatches { param([string]$StateDir)
     @(Get-ChildItem -LiteralPath (Get-WatchDir $StateDir) -Filter '*.json' -File -ErrorAction SilentlyContinue | ForEach-Object {
@@ -104,6 +110,18 @@ function Get-WakePrompt { param($Watch, [string]$InboxCmd)
 function Get-WakeCommand { param($Watch, [string]$InboxCmd, [string]$Exe = 'claude')
     @{ exe = $Exe; args = @('--resume', "$($Watch.session)", '--bg', (Get-WakePrompt $Watch $InboxCmd)); cwd = "$($Watch.cwd)" } }
 
+function Test-WakeProgram { param([string]$Source)
+    <# $false for a batch shim (claude.cmd from an npm install): its arguments are parsed again by cmd.exe, so a
+       goal or a path with a metacharacter could run something else. The native claude.exe takes them as they are. #>
+    -not ("$Source" -match '(?i)\.(cmd|bat)$') }
+
+function Test-PinnedScript { param([string]$Script, [string]$PinnedDir)
+    <# $true when the script runs from the copy pinned to the release (issue 108): only that copy may be
+       registered to run on a timer with the person's rights. #>
+    if (-not $Script -or -not $PinnedDir -or -not (Test-Path -LiteralPath $PinnedDir)) { return $false }
+    $root = ([IO.Path]::GetFullPath($PinnedDir)).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    ([IO.Path]::GetFullPath($Script)).StartsWith($root, $IsWindows ? [StringComparison]::OrdinalIgnoreCase : [StringComparison]::Ordinal) }
+
 function Format-WatchPosts { param([object[]]$Posts)
     <# Same header as tools/board, so lib/board-text.ps1 splits and caps post by post. #>
     (@(foreach ($p in $Posts) {
@@ -120,7 +138,8 @@ function Get-WatchSchedulePlan {
     $interval = [Math]::Max(60, $IntervalSec)
     switch ($Os) {
         'windows' {
-            $vbs = Join-Path (Split-Path $Script -Parent) 'board-hooks/run-hidden.vbs'
+            # Built by hand: the plan of another system is computed (and tested) on any system.
+            $vbs = ($Script -replace '[\\/][^\\/]*$', '') + '\board-hooks\run-hidden.vbs'
             @{ kind = 'schtask'; name = $script:BoardWatchTaskName; execute = 'wscript.exe'; intervalSec = $interval
                arguments = "//B //Nologo `"$vbs`" `"$Pwsh`" -NoProfile -File `"$Script`" tick" }
         }

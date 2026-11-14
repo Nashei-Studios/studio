@@ -56,6 +56,8 @@ flowchart TD
 - **Sesión viva y ocupada.** La lee su propia espera (`board-watch.ps1 wait`). Si esa espera murió, el hook de cierre de turno frena el cierre una vez y pide correr `inbox`.
 - **Freno.** Un reintento cada 30 minutos y 6 como máximo por tanda de posts. Una espera caduca a las 72 horas si nadie la renueva.
 - **Instalación.** `board-watch.ps1 install` registra la tarea: Programador de tareas con `wscript.exe` y `run-hidden.vbs` en Windows, `launchd` en macOS, `systemd --user` o `crontab` en Linux. `puesto.ps1 check` muestra si está.
+- **Desde dónde corre.** La tarea corre cada 2 minutos con los permisos de la persona, igual que los hooks. Por eso `install` solo acepta la copia fijada al último release (`~/Nashei/hooks/studio`, issue 108) y `puesto.ps1 install` la registra desde ahí. Registrar otra copia exige `-SinFijar`, a sabiendas.
+- **Qué se le pasa a `claude`.** La meta viaja como argumento, así que pierde los caracteres que una shell interpreta (`" & | < > ^ % !` y la comilla invertida). Si `claude` resuelve a un lanzador `.cmd` o `.bat`, la pasada no lo ejecuta y lo deja en su registro: `cmd.exe` volvería a interpretar los argumentos.
 
 ## Prueba de punta a punta (14-11-2026, Windows 11)
 
