@@ -54,6 +54,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 . (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
 . (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
+. (Join-Path $PSScriptRoot 'lib/rokit-tools.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -223,7 +224,7 @@ foreach ($root in $Repos) {
     }
 }
 
-$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @()
+$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @(); $cloneDirs = [ordered]@{}
 foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
@@ -231,6 +232,7 @@ foreach ($repo in @($list)) {
         if ($doInstall) { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
+    $cloneDirs[$repo.name] = $dir
     $why = Sync-CloneBranch -Dir $dir -Name $repo.name -Ecosystem $ecosystem -Org $Org -Install:$doInstall
     if ($why) { $branchIssues += $why }
     if (Test-Path -LiteralPath (Join-Path $dir '.githooks')) {
@@ -245,6 +247,33 @@ if ($login) {
     Add-Result 'ramas' ($branchIssues.Count ? 'PERSONA' : 'PASA') 'Clones en la rama de integración' ($branchIssues -join '; ')
     foreach ($row in $loopRows) { Add-Result $row.id $row.state $row.what $row.detail }
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
+}
+
+# ---- 3b. The game tools pinned by each rokit.toml must run, not only exist (issue 144). ----
+# Each tool is called from its clone so Rokit resolves the pinned version; a spec already probed is not called again.
+if (-not $wantCode) { Add-Result 'herramientas-juego' 'NO APLICA' 'Herramientas de los juegos' "no las pide el perfil $Perfil" }
+elseif ($login) {
+    $sacState = Get-SmartAppControlState (Read-SmartAppControlValue)
+    $probes = @{}; $gameRows = 0
+    foreach ($entry in $cloneDirs.GetEnumerator()) {
+        $tomlPath = Join-Path $entry.Value 'rokit.toml'
+        if (-not (Test-Path -LiteralPath $tomlPath)) { continue }
+        $pinned = Get-RokitTools (Get-Content -LiteralPath $tomlPath -Raw)
+        if (-not $pinned.Count) { continue }
+        $failures = @()
+        foreach ($name in $pinned.Keys) {
+            $spec = $pinned[$name]
+            if (-not $probes.ContainsKey($spec)) {
+                Push-Location -LiteralPath $entry.Value
+                try { $probes[$spec] = Invoke-Quiet $name (Get-RokitToolProbeArgs $name) } finally { Pop-Location }
+            }
+            if (-not $probes[$spec].ok) { $failures += [pscustomobject]@{ name = $name; out = $probes[$spec].out } }
+        }
+        $row = Get-RokitToolchainRow -Repo $entry.Key -Total $pinned.Count -Failures $failures -SacState $sacState -TrustCommand (Get-RokitTrustCommand $pinned)
+        Add-Result "herramientas-$($entry.Key)" $row.state "Herramientas de $($entry.Key) ejecutan" $row.detail
+        $gameRows++
+    }
+    if (-not $gameRows) { Add-Result 'herramientas-juego' 'NO APLICA' 'Herramientas de los juegos' 'ningún clon tiene rokit.toml' }
 }
 
 # ---- 4. Drive library ----
