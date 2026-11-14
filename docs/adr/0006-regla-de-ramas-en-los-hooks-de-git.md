@@ -23,5 +23,5 @@ Opción 2.
 
 ## Consecuencias
 - Positivas: la regla deja de depender de leer la shell; un alias o un script no la saltan. Lo que el agente no puede leer falla cerrado, y lo que sí puede leer recibe un mensaje útil antes de llegar a git.
-- Negativas: un repo sin `core.hooksPath` no tiene la regla (la fila `hooks` de `check` lo marca FALLA). La guardia del agente niega algunos comandos legítimos en ramas de trabajo: `--no-verify`, y un `git` dentro de `$( )` o backticks. Hay que escribirlos de otra forma.
+- Negativas: un repo sin `core.hooksPath` no tiene la regla (la fila `hooks` de `check` lo marca FALLA, y la guardia del agente niega commit y push ahí hasta que corra `install`). Los scripts de `.githooks` corren desde el árbol de trabajo del clon, no desde la copia fijada: cambiarlos exige un commit en una rama de trabajo, que la revisión de la PR ve. La guardia del agente niega algunos comandos legítimos en ramas de trabajo: `--no-verify`, y un `git` dentro de `$( )` o backticks. Hay que escribirlos de otra forma.
 - Qué haría revisar esta decisión: reglas de rama del servidor en privados del plan gratis, o un caso que los hooks de git no detengan.
