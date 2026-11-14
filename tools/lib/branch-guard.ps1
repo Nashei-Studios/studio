@@ -83,6 +83,26 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     $hookBypass = $Command -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
     # Config keys that switch the hooks off, add a command that may hide a commit or push, or redirect a push.
     $riskyKey = '(?i)^(?:core\.hookspath|alias\..+|remote\..+\.push|push\..+|include\..+|includeif\..+)(?:=.*)?$'
+    # `git -c key=value` for one call: only a short allowlist passes; any other key (include.path can pull a whole
+    # config file, core.* can point the hooks elsewhere) fails closed. Eighth security review.
+    $riskyC = { param([string]$Opts)
+        foreach ($c in [regex]::Matches($Opts, '(?i)-c\s+(?<kv>\S+)')) {
+            $key = ($c.Groups['kv'].Value.Trim('"', "'") -split '=', 2)[0]
+            if ($key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { return $true }
+        }
+        $false }
+    # Ninth review: a quoted -c value with a space (-c 'user.name=a b') ends the parsed option list early, so a later
+    # -c would land outside it. Every `-c key=value` anywhere in the command goes through the allowlist.
+    $anyRiskyC = $false
+    foreach ($c in [regex]::Matches($Command, '(?i)(?:^|\s)["'']?-c["'']?\s+(?<w>\S+)')) {
+        # One leading quote is the shell's; a quote or backslash inside the key, or a key outside the allowlist, is
+        # risky. A word with no '=' is not a config pair (grep -c 5), unless quotes could hide one.
+        $word = $c.Groups['w'].Value -replace '^["'']', ''
+        if ($word -notmatch '=') { if ($word -match '["''\\]') { $anyRiskyC = $true }; continue }
+        $key = ($word -split '=', 2)[0]
+        if ($key -match '["''\\`$]' -or $key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
+    }
+    $readSpans = @()   # spans of `git config` reads: a token like hooksPath inside them is not a bypass
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
     $dirOf = { param($Match, [string]$Opts)
@@ -140,6 +160,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                     $global = @($words | Where-Object { $_ -match '^--(global|system|file)$|^-f$' }).Count -gt 0
                     $ops += [pscustomobject]@{ op = 'config'; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $true; global = $global; start = -1 }
                 }
+                else { $readSpans += , @($m.Index, ($m.Index + $m.Length)) }
                 continue calls
             }
             '^(commit|push)$' { }
@@ -148,14 +169,13 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                 # Get-ShellBranchViolation looks it up in the repo's config.
                 # It carries the same red flags as a commit or push: hooks off, a hidden target, an alias or a push
                 # redirect set through -c for this one call.
-                $callUnclear = $envUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)|-c\s+\S*(?:alias\.|core\.hookspath|remote\.[^\s=]*\.push|push\.|include)')
+                $callUnclear = $envUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)') -or (& $riskyC $opts)
                 $ops += [pscustomobject]@{ op = 'call'; sub = $sub; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $callUnclear; start = -1 }
                 continue calls
             }
         }
         $dir = & $dirOf $m $opts
-        $unclear = $envUnclear -or $refUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)') -or
-            ($opts -match '(?i)-c\s+\S*(?:remote\.[^\s=]*\.push|push\.|alias\.)') -or
+        $unclear = $envUnclear -or $refUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)') -or (& $riskyC $opts) -or
             # commit -n is --no-verify, also inside a cluster of short flags (-anm)
             ($sub -eq 'commit' -and @($words | Where-Object { $_ -cmatch '^-[a-zA-Z]*n[a-zA-Z]*$' }).Count)
         $targets = @()
@@ -191,6 +211,19 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
         # Plain text of a parsed call (a commit message) is skipped, unless the command expands text it runs.
         if (-not $expands -and @($spans | Where-Object { $r.Index -ge $_[0] -and $r.Index -lt $_[1] }).Count) { continue }
         if (@($ops | Where-Object { $_.start -eq $r.Index }).Count) { continue }
+        $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
+    }
+    # A hook bypass token anywhere outside a `git config` read (a script after a git switch, say), or a risky -c
+    # anywhere, fails closed when nothing above already did. Ninth security review.
+    $outside = $Command
+    # A read is exempt only in a command that expands nothing: $( ), backticks or <( ) could hide a call in it.
+    if (-not $expands) {
+        foreach ($rs in @($readSpans | Sort-Object { $_[0] } -Descending)) { $outside = $outside.Remove($rs[0], $rs[1] - $rs[0]) }
+    }
+    $bypassOutside = $outside -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    # Always added when it applies: ops are judged one by one, and another unclear op may not deny (a config write
+    # in a repo outside the organization). Tenth security review.
+    if ($bypassOutside -or $anyRiskyC) {
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
