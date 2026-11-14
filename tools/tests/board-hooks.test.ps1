@@ -333,6 +333,19 @@ try {
         Assert ((& $guardShell 'Bash' 'git switch -c feat/2-y; git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a switch not chained with && does not lift the guard (it may have failed)'
         Assert ((& $guardShell 'Bash' 'git checkout feat/none && git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: checkout of a branch that does not exist does not lift the guard'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
+        # Third security review: a checkout that creates develop from origin (DWIM), a switch in another folder of
+        # the same repo, and git hidden behind quotes, backticks, braces or an assignment.
+        Assert ((& $guardShell 'Bash' 'git checkout develop && git commit -m x' $guardOrg) -match '"permissionDecision":"deny"') 'shell: checkout of a protected name counts even without a local branch'
+        New-Item -ItemType Directory -Force (Join-Path $guardOrg 'src/sub') | Out-Null
+        Assert ((& $guardShell 'Bash' "git switch develop && cd src/sub && git commit -m x" $guardOrg) -match '"permissionDecision":"deny"') 'shell: a switch from another folder of the same repo counts'
+        Assert ((& $guardShell 'Bash' 'git commit -m "guard git commit and git push onto develop"' $guardOrg).Trim() -eq '') 'shell: a commit message that says git push is text, not a push'
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
+        Assert ((& $guardShell 'Bash' 'git log --oneline --grep push -5' $guardOrg).Trim() -eq '') 'shell: git log --grep push on develop passes'
+        foreach ($hidden in @('bash -c "git commit -m x"', '`git push origin main`', '{git commit -m x}', '$x=git push origin main', 'echo hi | xargs git commit -m x')) {
+            Assert ((& $guardShell 'Bash' $hidden "$guardOrg") -match '"permissionDecision":"deny"') "shell: a commit or push the parser cannot place fails closed ($hidden)"
+        }
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
 
         # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
         $fakeBin = Join-Path $work 'bin'; New-Item -ItemType Directory -Force $fakeBin | Out-Null
