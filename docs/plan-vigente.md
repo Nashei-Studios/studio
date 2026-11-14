@@ -37,9 +37,9 @@ Primero se cierra lo que está a medio camino, después lo nuevo. Dentro de cada
 2. **#103**: reaparecer cuando el mar no carga y tratar como muerto a un humanoide sin raíz.
 3. **#87**: prueba de carga con varios clientes (lobby de 20, partidas de 4) en Studio.
 4. **#33**: ajuste de streaming, medido antes y después.
-5. **#37 y #36**: unificar el `DataService` heredado con el de la plantilla y tiparlo.
-6. **Ola 2**: #96 monetización y la parte de código de #95 jefes, cada una con su investigación (`## Investigación` en el issue) antes del primer cambio.
-7. **Seguridad del puesto**: los cuatro hallazgos sobre los hooks globales (scripts del clon de `studio` que corren en todas las sesiones, candado que falla abierto, guardia de rama solo en Edit y Write, texto del tablero que entra al contexto) van a un issue de `studio` y se resuelven por PR.
+5. **#36 hecho** (14-11): todo el código heredado pasa por `luau-lsp` en el gate (PR #142, #143, #146, #147 y #149). **#37** (unificar el `DataService` heredado con el de la plantilla) es `needs-team`: espera la decisión del equipo con el análisis a fondo de sus opciones.
+6. **Ola 2**: la investigación de #96 (monetización, PR #160) y de la parte de código de #95 (jefes, PR #151) está hecha y abrió las tareas #152 a #159. Va primero #156: el `ProcessReceipt` heredado pisa al de la plantilla y no es idempotente.
+7. **Seguridad del puesto, hecho** (studio#108, 14-11): texto del tablero con tope y delimitado, guardia de rama en la shell, versión mínima de Claude Code, hooks desde una copia fijada al release, y la regla de ramas en los hooks de git (ADR 0006). Los juegos reciben el `pre-commit` por la plantilla (#266) en su próximo release.
 
 ### Leon y su agente (mundo, arte, UI, audio)
 
@@ -52,11 +52,11 @@ Primero se cierra lo que está a medio camino, después lo nuevo. Dentro de cada
 
 ### Nande (beta tester y líder, crecimiento)
 
-Juega la versión privada cuando Victor la publique y deja notas de voz cortas; van a Notion.
+Juega la versión privada cuando el equipo decida publicarla, y deja notas de voz cortas; van a Notion.
 
-## Lo que solo puede hacer Victor
+## Lo que decide el equipo y ejecuta Victor
 
-Ningún agente lo hace ni lo rodea.
+Ninguna decisión la toma una sola persona: va con la etiqueta `needs-team`, explicada entera a Victor y a Leon (al otro por el tablero), y se registra cuando responden al menos dos (skill `empezar-a-trabajar`, paso 3c). Lo que sigue lo ejecuta solo Victor, después de esa decisión; ningún agente lo hace ni lo rodea.
 
 - Publicar en Roblox, hacer público el juego y gastar Robux.
 - Llaves: scope `legacy-asset:manage` en la llave de Roblox (hoy da 403), `TEMPLATE_SYNC_TOKEN`, llave de monetización, llave de Open Cloud (template#241).
