@@ -56,6 +56,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
 . (Join-Path $PSScriptRoot 'lib/rokit-tools.ps1')
 . (Join-Path $PSScriptRoot 'lib/claude-version.ps1')
+. (Join-Path $PSScriptRoot 'lib/pinned-hooks.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -361,17 +362,26 @@ if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
     Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
 }
 # ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
-# before ending the turn, start lock. They point at the studio clone, so a pull updates them. ----
+# before ending the turn, start lock, branch guard. They run from a worktree pinned to the latest release tag
+# (issue 108), not from the live branch of the studio clone: a new release reaches them with install. ----
 if (Test-Cmd claude) {
     # The hooks use onFailure and if: below agente.claude_code_minimo Claude Code ignores them (issue 108).
     $claudeRow = Get-ClaudeVersionRow (Invoke-Quiet claude @('--version')).out "$($ecosystem.agente.claude_code_minimo)" (Get-PuestoLoopConfig -Base $Base).modo
     Add-Result 'claude-version' $claudeRow.state 'Versión de Claude Code (campos de los hooks del estudio)' $claudeRow.detail
     $studioClone = $clones['studio'] ?? (Split-Path $PSScriptRoot -Parent)
-    $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
+    $pinnedDir = Join-Path $Base 'hooks/studio'
+    $pinWhy = ''
+    if ($doInstall) {
+        & git -C $studioClone fetch --quiet --tags origin 2>$null
+        $pinWhy = Install-PinnedHooks $studioClone $pinnedDir
+    }
+    $pinRow = $pinWhy ? @{ state = 'PERSONA'; detail = $pinWhy } : (Test-PinnedHooks $studioClone $pinnedDir)
+    Add-Result 'hooks-fijados' $pinRow.state 'Hooks del estudio desde una copia fijada al último release' $pinRow.detail
+    $hookScript = Join-Path $pinnedDir 'tools/board-hooks/board-hook.ps1'
     $settingsPath = Get-ClaudeSettingsPath
     $why = ''
     if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo }
-    elseif ($doInstall) { $why = 'el clon de studio no trae tools/board-hooks/board-hook.ps1: actualízalo y vuelve a correr install' }
+    elseif ($doInstall) { $why = "no hay copia fijada de los hooks en $pinnedDir (ver la fila hooks-fijados)" }
     $missingHooks = @()
     try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo) }
     catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
