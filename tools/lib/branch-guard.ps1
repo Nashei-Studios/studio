@@ -91,6 +91,13 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
             if ($key -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { return $true }
         }
         $false }
+    # Ninth review: a quoted -c value with a space (-c 'user.name=a b') ends the parsed option list early, so a later
+    # -c would land outside it. Every `-c key=value` anywhere in the command goes through the allowlist.
+    $anyRiskyC = $false
+    foreach ($c in [regex]::Matches($Command, '(?i)(?:^|\s)-c\s+[''"]?(?<k>[a-z][\w-]*(?:\.[^\s=''"]+)+)=')) {
+        if ($c.Groups['k'].Value -notmatch '(?i)^(user\.(name|email)|color\..+|core\.pager|core\.quotepath|pager\..+)$') { $anyRiskyC = $true }
+    }
+    $readSpans = @()   # spans of `git config` reads: a token like hooksPath inside them is not a bypass
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
     $dirOf = { param($Match, [string]$Opts)
@@ -148,6 +155,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                     $global = @($words | Where-Object { $_ -match '^--(global|system|file)$|^-f$' }).Count -gt 0
                     $ops += [pscustomobject]@{ op = 'config'; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $true; global = $global; start = -1 }
                 }
+                else { $readSpans += , @($m.Index, ($m.Index + $m.Length)) }
                 continue calls
             }
             '^(commit|push)$' { }
@@ -200,8 +208,12 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
         if (@($ops | Where-Object { $_.start -eq $r.Index }).Count) { continue }
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
-    # A hook bypass token with no git call the parser could read (a script that commits) still fails closed.
-    if ($hookBypass -and -not $spans.Count) {
+    # A hook bypass token anywhere outside a `git config` read (a script after a git switch, say), or a risky -c
+    # anywhere, fails closed when nothing above already did. Ninth security review.
+    $outside = $Command
+    foreach ($rs in @($readSpans | Sort-Object { $_[0] } -Descending)) { $outside = $outside.Remove($rs[0], $rs[1] - $rs[0]) }
+    $bypassOutside = $outside -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    if (($bypassOutside -or $anyRiskyC) -and -not @($ops | Where-Object { $_.unclear }).Count) {
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }

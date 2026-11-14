@@ -388,6 +388,11 @@ try {
             Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
         }
         Assert ((& $guardShell 'Bash' 'git -c user.name=x -c color.ui=never commit -m y' "$guardOrg").Trim() -eq '') 'shell: -c with an allowlisted key passes on a work branch'
+        # Ninth review: a quoted -c value with a space, and a bypass token after a git call that records no op.
+        foreach ($bypass in @("git -c 'user.name=a b' -c include.path=/tmp/x commit -m y", 'git switch feat/89-guard && ALLOW_PROTECTED_PUSH=1 ./ship.sh')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git log --oneline -3 | grep -c fix' "$guardOrg").Trim() -eq '') 'shell: grep -c after git is not a git -c'
         New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
         & git -C $guardOrg config core.hooksPath .githooks
