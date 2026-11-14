@@ -378,6 +378,11 @@ try {
             Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
         }
         Assert ((& $guardShell 'Bash' 'git config get core.hooksPath; git config --get-regexp alias' "$guardOrg").Trim() -eq '') 'shell: reading with the new get syntax and --get-regexp passes'
+        # Seventh review: --config-env, quoted keys and whole risky sections.
+        foreach ($bypass in @('git --config-env=alias.x=X x', 'git config "alias.ci" commit', 'git config --rename-section foo alias', 'git config --remove-section "core"')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'Bash' 'git config --remove-section branch.feat/old' "$guardOrg").Trim() -eq '') 'shell: removing a branch section (the cleanup after a merge) passes'
         New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
         & git -C $guardOrg config core.hooksPath .githooks

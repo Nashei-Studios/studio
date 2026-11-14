@@ -79,7 +79,8 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # The rule itself lives in .githooks (pre-commit, pre-push), which see the real branch. Anything that would
     # switch those hooks off, or change what a push targets through config, is denied here (issue 108).
     # --no-v... covers every abbreviation git accepts for --no-verify (it takes any unique prefix).
-    $hookBypass = $Command -match '(?i)--no-v[a-z-]*|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    # --config-env sets config from the environment like -c does, without the key showing: any use fails closed.
+    $hookBypass = $Command -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
     # Config keys that switch the hooks off, add a command that may hide a commit or push, or redirect a push.
     $riskyKey = '(?i)^(?:core\.hookspath|alias\..+|remote\..+\.push|push\..+|include\..+|includeif\..+)(?:=.*)?$'
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
@@ -126,10 +127,15 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
             '^config$' {
                 # Writing a risky key is denied on its own, whatever else the command does: a later command would
                 # run with the hooks off or through the alias. Reading (--get, --list) is fine.
+                # Words as the shell hands them to git; one that still needs expanding fails closed.
+                $unquoted = @($plain | ForEach-Object { $w = ConvertFrom-ShellWord $_; if ($null -eq $w) { '<unclear>' } else { $w } })
                 # A write is a risky key followed by a value, or any write verb or flag; a lone key is a read.
-                $keyAt = [array]::FindIndex([string[]]$plain, [Predicate[string]] { param($x) $x -match $riskyKey })
+                $keyAt = [array]::FindIndex([string[]]$unquoted, [Predicate[string]] { param($x) $x -match $riskyKey -or $x -eq '<unclear>' })
                 $writeVerb = @($words | Where-Object { $_ -match '^(set|unset|edit|rename-section|remove-section|--unset(-all)?|--add|--replace-all|--rename-section|--remove-section|-e|--edit)$' }).Count
-                $writes = $keyAt -ge 0 -and ($writeVerb -or $keyAt + 1 -lt $plain.Count -or $plain[$keyAt] -match '=')
+                # Renaming or removing a whole section (core, alias, include, includeIf, push, remote.*) counts too.
+                $riskySection = @($unquoted | Where-Object { $_ -match '(?i)^(core|alias|include|includeif|push|remote(\..+)?)$' }).Count
+                $writes = ($keyAt -ge 0 -and ($writeVerb -or $keyAt + 1 -lt $unquoted.Count -or $unquoted[$keyAt] -match '=' -or $unquoted[$keyAt] -eq '<unclear>')) -or
+                    ($riskySection -and @($words | Where-Object { $_ -match '^(--)?(rename|remove)-section$' }).Count)
                 if ($writes) {
                     $global = @($words | Where-Object { $_ -match '^--(global|system|file)$|^-f$' }).Count -gt 0
                     $ops += [pscustomobject]@{ op = 'config'; dir = (& $dirOf $m $opts); moves = @(); targets = @(); unclear = $true; global = $global; start = -1 }
