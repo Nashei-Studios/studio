@@ -107,6 +107,12 @@ $lockOf = { param($spec) $spec.PreToolUse[0].hooks[0] }
 Assert ((& $lockOf (Get-NasheiHookSpec $hook 'estricto')).onFailure -eq 'block' -and (& $lockOf (Get-NasheiHookSpec $hook 'autonomo')).onFailure -eq 'block') 'in a blocking modo the lock fails closed'
 Assert (-not (& $lockOf (Get-NasheiHookSpec $hook 'preguntar')).Contains('onFailure')) 'with preguntar a broken lock does not stop Studio work'
 Assert ((Test-UserHooks $merged $hook 'estricto') -contains 'PreToolUse') 'check asks for install again when the modo became blocking'
+$shellGroup = @((Get-NasheiHookSpec $hook).PreToolUse | Where-Object { $_.matcher -eq '^Bash$|^PowerShell$' })
+Assert ($shellGroup.Count -eq 1 -and (($shellGroup[0].hooks | ForEach-Object { $_.if }) -join ',') -eq 'Bash(git *),PowerShell(git *)' -and
+    @($shellGroup[0].hooks | Where-Object { $_.args[3] -eq 'rama' }).Count -eq 2) 'the shell branch guard only spawns for git commands (if field)'
+$oldInstall = $merged | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable
+$oldInstall.hooks.PreToolUse = @($oldInstall.hooks.PreToolUse | Where-Object { $_.matcher -ne '^Bash$|^PowerShell$' })
+Assert ((Test-UserHooks $oldInstall $hook) -contains 'PreToolUse') 'an install without the shell guard is asked to run install again'
 
 # Board text enters the context capped and fenced (issue 108, finding 4).
 . (Join-Path $tools 'lib/board-text.ps1')
@@ -270,6 +276,32 @@ try {
         Assert ((& $guardEdit $guardOwn).Trim() -eq '') 'rama: a repo outside the organization passes even on develop'
         Assert ((& $guardEdit $noRepo).Trim() -eq '') 'rama: a folder that is not a repo passes'
         Assert ((Invoke-Hook 'rama' @{ session_id = 'G'; tool_name = 'Edit'; tool_input = @{} }).Trim() -eq '') 'rama: a call that names no file passes'
+
+        # 11c. Branch guard from the shell (issue 108, finding 3): git commit and git push on a protected branch.
+        $ops = @(Get-ShellGitOps 'cd "D:/r/mi repo" && git add . && git commit -m "x" && git -C D:/other push origin HEAD:develop' 'D:/cwd')
+        Assert ($ops.Count -eq 2 -and $ops[0].op -eq 'commit' -and $ops[0].dir -eq 'D:/r/mi repo') 'shell: a commit runs where the last cd went'
+        Assert ($ops[1].op -eq 'push' -and $ops[1].dir -eq 'D:/other' -and ($ops[1].targets -join ',') -eq 'develop') 'shell: git -C wins and HEAD:develop targets develop'
+        Assert (@(Get-ShellGitOps 'git commit-tree abc; git log --oneline; echo commit' 'D:/cwd').Count -eq 0) 'shell: commit-tree, log and a bare word are not commits'
+        Assert ((@(Get-ShellGitOps 'Set-Location sub; git push -u origin feat/1-x +main refs/heads/develop' 'D:/cwd')[0].targets -join ',') -eq 'feat/1-x,main,develop') 'shell: Set-Location is followed and every refspec is a target'
+        Assert (@(Get-ShellGitOps 'git -c user.name=x commit -m y' 'D:/cwd')[0].dir -eq 'D:/cwd') 'shell: git -c options are skipped and the cwd is used'
+        # The test repo has no commits: symbolic-ref moves an unborn HEAD, where switch would fail.
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
+        $guardShell ={ param([string]$tool, [string]$cmd, [string]$cwd)
+            Invoke-Hook 'rama' @{ session_id = 'G'; hook_event_name = 'PreToolUse'; tool_name = $tool; cwd = $cwd; tool_input = @{ command = $cmd } } }
+        & $setModo 'estricto'
+        $out = & $guardShell 'Bash' 'git commit -m "wip"' $guardOrg
+        Assert ($out -match '"permissionDecision":"deny"' -and $out -match 'git commit' -and $out -match 'switch -c feat/') 'shell: estricto denies a commit on develop of an organization clone'
+        Assert ((& $guardShell 'PowerShell' "git -C `"$guardOrg`" commit -am x" $noRepo) -match '"permissionDecision":"deny"') 'shell: PowerShell with git -C is covered'
+        Assert ((& $guardShell 'Bash' 'git push' $guardOrg) -match '"permissionDecision":"deny"') 'shell: a plain push from develop is denied'
+        & $setModo 'preguntar'
+        Assert ((& $guardShell 'Bash' 'git commit -m x' $guardOrg) -match '"permissionDecision":"ask"') 'shell: preguntar asks'
+        & $setModo 'estricto'
+        Assert ((& $guardShell 'Bash' 'git status && git log -1' $guardOrg).Trim() -eq '') 'shell: other git commands pass'
+        Assert ((& $guardShell 'Bash' 'git commit -m x' $guardOwn).Trim() -eq '') 'shell: a repo outside the organization passes'
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
+        Assert ((& $guardShell 'Bash' 'git commit -m x && git push -u origin feat/89-guard' $guardOrg).Trim() -eq '') 'shell: commit and push of a work branch pass'
+        Assert ((& $guardShell 'Bash' 'git push origin HEAD:main' $guardOrg) -match '"permissionDecision":"deny"') 'shell: pushing a work branch onto main is denied'
+        Assert ((& $guardShell 'Bash' 'git push origin develop' $guardOrg) -match '"permissionDecision":"deny"') 'shell: naming develop as the target is denied from any branch'
 
         # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
         $fakeBin = Join-Path $work 'bin'; New-Item -ItemType Directory -Force $fakeBin | Out-Null

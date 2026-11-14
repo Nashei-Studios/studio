@@ -8,7 +8,8 @@
 #   candado        PreToolUse: an MCP edit to a group place needs an issue started in this session
 #                  (modo preguntar asks the person; autonomo and estricto deny)
 #   rama           PreToolUse: Edit/Write/MultiEdit/NotebookEdit on a file of an organization clone sitting on a protected
-#                  branch (develop, main: config github.ramas_protegidas); same modo logic as candado. Fails open.
+#                  branch (develop, main: config github.ramas_protegidas), and `git commit` / `git push` onto one from
+#                  Bash or PowerShell (issue 108); same modo logic as candado. Fails open.
 # -Usuario: registered at user level by `puesto.ps1 install` (issue 67). The board then comes from this clone of
 # studio, and session-start / prompt stay quiet inside a clone whose own .claude/settings.json already runs them.
 # Never fails the session: always exits 0 (the lock answers with a JSON decision instead of an exit code).
@@ -77,13 +78,22 @@ if ($Mode -in 'registro', 'cierre', 'candado', 'rama') {
                    reason = "Tocaste cosas compartidas que aún no avisas en el Agent Board (docs/flujo-arte-y-avisos.md, sección 5): $list. Antes de terminar publica el aviso con: $cmd (usa cierro en vez de avance si terminaste el issue). El comando agrega esta lista y vacía el registro." } | ConvertTo-Json -Compress
             }
             'rama' {
-                $target = Get-EditTarget $in.tool_input "$($in.cwd)"
-                if (-not $target) { break }
-                $violation = Get-BranchViolation $target $eco
-                if (-not $violation) { break }   # outside the organization or on a work branch: nothing to say
                 $modo = (Get-PuestoLoopConfig).modo
+                $reason = ''
+                if ("$($in.tool_name)" -in 'Bash', 'PowerShell') {
+                    # git commit / git push from the shell (issue 108): the first op that hits a protected branch.
+                    foreach ($op in @(Get-ShellGitOps "$($in.tool_input.command)" "$($in.cwd)")) {
+                        $violation = Get-ShellBranchViolation $op $eco
+                        if ($violation) { $reason = Format-ShellBranchReason $violation $modo; break }
+                    }
+                }
+                else {
+                    $target = Get-EditTarget $in.tool_input "$($in.cwd)"
+                    $violation = $target ? (Get-BranchViolation $target $eco) : $null
+                    if ($violation) { $reason = Format-BranchReason $violation $modo }
+                }
+                if (-not $reason) { break }   # outside the organization or on a work branch: nothing to say
                 $decision = Get-BranchDecision $modo
-                $reason = Format-BranchReason $violation $modo
                 $specific = [ordered]@{ hookEventName = 'PreToolUse'; permissionDecision = $decision; permissionDecisionReason = $reason }
                 if ($decision -eq 'ask') { $specific.additionalContext = $reason }
                 @{ hookSpecificOutput = $specific } | ConvertTo-Json -Compress -Depth 4
