@@ -106,6 +106,10 @@ try {
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'pinned-hooks.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'pinned-hooks unit tests pass'
 
+    # 4h. The branch rule enforced by git (.githooks pre-commit and pre-push, ADR 0006).
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'git-hooks.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'git hooks tests pass'
+
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results
     $all = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas 'ROBLOX_API_KEY,ROBLOX_MONETIZATION_API_KEY' | Out-String | ConvertFrom-Json).results

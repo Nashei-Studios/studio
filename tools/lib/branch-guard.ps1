@@ -76,6 +76,11 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # the parser placed, the extra ones fail closed instead of slipping through.
     $rawRx = '(?i)(?<![\w-])git(?:\.exe)?["''`]?(?:\s+-\S+(?:\s+(?!-)\S+)?)*?\s+(?:commit|push)(?![\w-])'
     $envUnclear = $Command -match '(?i)(?:^|[\s;&|])(?:\$env:)?GIT_(?:DIR|WORK_TREE)\s*='
+    # The rule itself lives in .githooks (pre-commit, pre-push), which see the real branch. Anything that would
+    # switch those hooks off, or change what a push targets through config, is denied here (issue 108).
+    $hookBypass = $Command -match '(?i)--no-verify|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
+    # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
+    $expands = $Command -match '\$\(|`|<\('
     $dirOf = { param($Match, [string]$Opts)
         $d = ''
         $c = [regex]::Match($Opts, "-C\s+(?<d>$quoted)")
@@ -119,7 +124,10 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
             default { continue calls }
         }
         $dir = & $dirOf $m $opts
-        $unclear = $envUnclear -or $refUnclear -or ($opts -match '(?i)--(git-dir|work-tree)')
+        $unclear = $envUnclear -or $refUnclear -or $hookBypass -or ($opts -match '(?i)--(git-dir|work-tree)') -or
+            ($opts -match '(?i)-c\s+\S*(?:remote\.[^\s=]*\.push|push\.|alias\.)') -or
+            # commit -n is --no-verify, also inside a cluster of short flags (-anm)
+            ($sub -eq 'commit' -and @($words | Where-Object { $_ -cmatch '^-[a-zA-Z]*n[a-zA-Z]*$' }).Count)
         $targets = @()
         if ($sub -eq 'push') {
             if ($words | Where-Object { $_ -in '--all', '--mirror', '--branches' }) { $targets = @('*') }
@@ -129,6 +137,8 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                     $clean = ConvertFrom-ShellWord $ref
                     if ($null -eq $clean) { $unclear = $true; continue }
                     $dst = (($clean -split ':')[-1]).TrimStart('+') -replace '^refs/heads/', ''
+                    # ':' alone (matching branches), an empty destination or a glob reach branches it cannot name.
+                    if ($clean -eq ':' -or -not $dst -or $dst -match '[*?\[]') { $unclear = $true; continue }
                     if ($dst -and $dst -ne 'HEAD') { $targets += $dst }
                 }
             }
@@ -141,12 +151,16 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
                 $between = $Command.Substring($mv.end, [math]::Max(0, $m.Index - $mv.end)) -replace '&&', ''
                 [pscustomobject]@{ branch = $mv.branch; kind = $mv.kind; dir = $mv.dir; chained = ($between -notmatch '[;|&\n]') }
             })
-        $ops += [pscustomobject]@{ op = $sub; dir = $dir; moves = $before; targets = $targets; unclear = $unclear }
+        # Where its `git` word sits (after any path or quote in front), to match it with the safety net below.
+        $gitAt = $m.Index + $m.Value.Substring(0, $m.Groups['opts'].Index - $m.Index).LastIndexOf('git', [StringComparison]::OrdinalIgnoreCase)
+        $ops += [pscustomobject]@{ op = $sub; dir = $dir; moves = $before; targets = $targets; unclear = $unclear; start = $gitAt }
     }
     # A raw match inside a git call the parser already read (a commit message that says "git push", a --grep)
     # is that call's text, not a command of its own.
     foreach ($r in [regex]::Matches($Command, $rawRx)) {
-        if (@($spans | Where-Object { $r.Index -ge $_[0] -and $r.Index -lt $_[1] }).Count) { continue }
+        # Plain text of a parsed call (a commit message) is skipped, unless the command expands text it runs.
+        if (-not $expands -and @($spans | Where-Object { $r.Index -ge $_[0] -and $r.Index -lt $_[1] }).Count) { continue }
+        if (@($ops | Where-Object { $_.start -eq $r.Index }).Count) { continue }
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
@@ -176,7 +190,10 @@ function Get-ShellBranchViolation { param($Op, $Ecosystem)
         $isBranch = $mv.kind -ne 'checkout' -or $mv.branch -in $protected
         if (-not $isBranch) {
             & git -C $top rev-parse --verify --quiet "refs/heads/$($mv.branch)" *> $null
-            $isBranch = $LASTEXITCODE -eq 0 -or [bool]((& git -C $top for-each-ref --format='%(refname)' "refs/remotes/*/$($mv.branch)" 2>$null | Out-String).Trim())
+            $local = $LASTEXITCODE -eq 0
+            # Exact names only: a word with glob or pathspec characters is never taken for a branch.
+            $remoteNames = @(& git -C $top for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/' 2>$null)
+            $isBranch = $mv.branch -notmatch '[*?\[\]:]|^[.:]' -and ($local -or $remoteNames -ccontains $mv.branch)
         }
         if ($isBranch) {
             # Joined only by && in a repo it could read: the op ran on that branch. Otherwise both count.
@@ -184,7 +201,10 @@ function Get-ShellBranchViolation { param($Op, $Ecosystem)
         }
         break
     }
-    $names = if ($Op.op -eq 'push' -and @($Op.targets) -contains '*') { $protected }
+    # A push with no refspec follows remote.<name>.push when the repo sets one: it can reach any branch.
+    $configPush = $Op.op -eq 'push' -and -not @($Op.targets).Count -and
+        [bool]((& git -C $top config --get-regexp '^remote\..*\.push$' 2>$null | Out-String).Trim())
+    $names = if ($Op.op -eq 'push' -and (@($Op.targets) -contains '*' -or $configPush)) { $protected }
              elseif ($Op.op -eq 'push' -and @($Op.targets).Count) { @($Op.targets) }
              else { $on }
     $hit = @($names | Where-Object { $_ -and $_ -in $protected } | Select-Object -First 1)
@@ -195,7 +215,7 @@ function Format-ShellBranchReason { param($Violation, [string]$Modo)
     $v = $Violation
     $new = "git -C `"$($v.top)`" switch -c feat/<n>-<slug>"
     if ($v.unclear) {
-        return "Guardia de rama (modo ${Modo}): no puedo saber a qué rama va este git $($v.op) (GIT_DIR, GIT_WORK_TREE, --git-dir, --work-tree, symbolic-ref, update-ref o un nombre de rama con variables o comillas por dentro), así que no pasa. Córrelo dentro del clon, en tu rama de trabajo, con la rama escrita tal cual."
+        return "Guardia de rama (modo ${Modo}): este git $($v.op) no pasa: o apaga los hooks de git que hacen cumplir la regla (--no-verify, commit -n, hooksPath, ALLOW_PROTECTED_*, GIT_CONFIG_*), o no puedo saber a qué rama va (GIT_DIR, GIT_WORK_TREE, --git-dir, --work-tree, symbolic-ref, update-ref, -c remote.*.push, un refspec ':' o con *, un nombre con variables, o un git dentro de `$( ) o backticks). Córrelo dentro del clon, en tu rama de trabajo, con la rama escrita tal cual y sin esas opciones."
     }
     $what = $v.op -eq 'push' ? "git push a $($v.branch)" : "git commit en $($v.branch)"
     "Guardia de rama (modo ${Modo}): $what de $($v.name). En develop y main no se hace commit ni push directo; todo entra por PR (docs/en-vivo-y-ramas.md). Toma el issue (work.ps1 claim <n>), crea tu rama con $new (o un worktree) y repite el comando ahí." }

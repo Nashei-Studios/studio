@@ -344,6 +344,20 @@ try {
         foreach ($hidden in @('bash -c "git commit -m x"', '`git push origin main`', '{git commit -m x}', '$x=git push origin main', 'echo hi | xargs git commit -m x')) {
             Assert ((& $guardShell 'Bash' $hidden "$guardOrg") -match '"permissionDecision":"deny"') "shell: a commit or push the parser cannot place fails closed ($hidden)"
         }
+        # Fourth review: the rule lives in .githooks, so anything that switches them off or redirects a push through
+        # config is denied even on a work branch; refspecs that cannot be named fail closed.
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
+        foreach ($bypass in @('git commit --no-verify -m x', 'git commit -anm x', 'git -c core.hooksPath=/dev/null commit -m x',
+                'git push --no-verify origin feat/89-guard', 'ALLOW_PROTECTED_PUSH=1 git push origin feat/89-guard',
+                'git -c remote.origin.push=HEAD:develop push', 'git push origin :', "git push origin 'feat/*'",
+                'git commit -m "$(git push origin main)"', 'git config core.hooksPath x; git commit -m y')) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        & git -C $guardOrg config remote.origin.push 'HEAD:refs/heads/develop'
+        Assert ((& $guardShell 'Bash' 'git push' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a plain push follows remote.origin.push when the repo sets it'
+        & git -C $guardOrg config --unset remote.origin.push
+        Assert ((& $guardShell 'Bash' 'git commit -m "say git push in the message" && git push -u origin feat/89-guard' "$guardOrg").Trim() -eq '') 'shell: the usual commit and push of a work branch still pass'
+        Assert ((& $guardShell 'Bash' 'git checkout "feat/*" && git commit -m x' "$guardOrg").Trim() -eq '') 'shell: a glob word is never taken for a branch (stays on the work branch)'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
         & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
 
