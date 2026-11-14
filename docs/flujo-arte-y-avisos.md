@@ -123,7 +123,7 @@ Reglas:
 
 ## 6. Lo que hace solo el sistema: hooks de usuario
 
-`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` del clon de `studio`. Corren en cualquier carpeta, en Windows, macOS y Linux, y un `pull` del clon los actualiza. `puesto.ps1 check` dice si están y si calzan con tu `modo` (fila "Hooks del estudio a nivel usuario"); si cambias el `modo`, vuelve a correr `install`. `pwsh tools/puesto.ps1 uninstall-hooks` los quita y deja el resto del archivo como estaba; la primera instalación guarda el original en `settings.json.bak-nashei`.
+`pwsh tools/puesto.ps1 install` registra los hooks del estudio en el `settings.json` de usuario de Claude Code (o en `CLAUDE_CONFIG_DIR`), apuntando a `tools/board-hooks/board-hook.ps1` de una copia fijada (issue 108): un worktree del clon de `studio` en `~/Nashei/hooks/studio`, sin rama, en el último tag de release de `main`. Corren en cualquier carpeta, en Windows, macOS y Linux. Lo que llega a la rama del clon no corre en tus sesiones hasta que pasa por PR, CI y release, y tú vuelves a correr `install`. `puesto.ps1 check` dice si la copia fijada está en el último release y sin cambios (fila "hooks-fijados"), y si los hooks están y calzan con tu `modo` (fila "Hooks del estudio a nivel usuario"); si sale un release nuevo o cambias el `modo`, vuelve a correr `install`. La copia fijada no se edita a mano: `install` la deja otra vez en el tag. `pwsh tools/puesto.ps1 uninstall-hooks` los quita y deja el resto del archivo como estaba; la primera instalación guarda el original en `settings.json.bak-nashei`.
 
 | Hook | Evento | Qué hace |
 |---|---|---|

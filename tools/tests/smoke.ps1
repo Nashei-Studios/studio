@@ -21,7 +21,7 @@ $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The scripts parse.
-    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version') {
+    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks') {
         $errors = $null
         [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $tools "$name.ps1"), [ref]$null, [ref]$errors)
         Assert ($errors.Count -eq 0) "$name.ps1 parses"
@@ -100,6 +100,11 @@ try {
     # 4f. Claude Code version for the hook fields (issue 108): the pure tests pass on this system.
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'claude-version.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'claude-version unit tests pass'
+
+    # 4g. Hooks pinned to the release tag (issue 108): the row exists, and the worktree tests pass on this system.
+    Assert (@($parsed.results | Where-Object { $_.id -in 'hooks-fijados', 'hooks-usuario' }).Count -ge 1) 'puesto check reports the hooks'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'pinned-hooks.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'pinned-hooks unit tests pass'
 
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results
