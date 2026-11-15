@@ -285,7 +285,9 @@ if (Test-Cmd rclone) {
     $root = $ecosystem.drive.raiz
     $hasRemote = { (Invoke-Quiet rclone @('listremotes')).out -match "(?m)^$([regex]::Escape($Remote)):" }
     $createCmd = "rclone config create $Remote drive scope=drive root_folder_id=$($root.id)"
-    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION
+    # NASHEI_SIN_NAVEGADOR: an unattended run (a CI runner) has a browser but nobody to click in it; opening one
+    # there waits for the Google sign-in until the job is killed (issue 91).
+    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION -or [bool]$env:NASHEI_SIN_NAVEGADOR
     if (-not (& $hasRemote) -and $Action -eq 'install' -and -not $noBrowser) {
         # Opens the browser: the person authorizes with the Google account the folder was shared with.
         Invoke-Quiet rclone (@('config', 'create', $Remote, 'drive', 'scope=drive', "root_folder_id=$($root.id)")) | Out-Null
