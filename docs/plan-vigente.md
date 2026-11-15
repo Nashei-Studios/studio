@@ -48,7 +48,7 @@ Hecho al 14-11:
 4. **Lo que no depende de una decisión:**
    - **drain-for-loot: hecho el 15-11.** #141 y #72 arreglados (PR #203 y #204); #77 y #59 cerrados con la prueba de que ya habían entrado.
    - **studio: hecho el 15-11.** #85 cerrado con la prueba (`puesto.ps1 check` da PASA en los cinco clones) y #91 arreglado (PR #174): la instalación en macOS y Windows esperaba un inicio de sesión de Google y ahora termina en 1 y 3 minutos.
-   - **plantilla:** #269 hecho el 15-11 (PR #270). En curso el 15-11: #242, #233 y #201 a #203.
+   - **plantilla: hecho el 15-11.** #269 (PR #270), #242 (PR #271), #233 (PR #272), #201 (PR #273) y #202 con #203 (PR #274). Las mediciones de la página de presupuesto de carga quedan en `TBD` hasta la prueba privada.
 
    Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2).
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
@@ -56,7 +56,7 @@ Hecho al 14-11:
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
    - Sale una propuesta `needs-team` por frente, explicada a Victor y a Leon.
    - Trabajadores Sonnet, como máximo 3 a la vez, midiendo antes la memoria libre.
-   - **Verificación hecha el 15-11:** R-115 a R-133 están en el issue, cada uno con qué es cierto, qué no y a qué issue del juego sirve. Queda abierto #173: una nota por reel en el vault del equipo.
+   - **Hecho el 15-11:** R-115 a R-133 verificados en el issue y con una nota por reel en el vault (`research/sources/reels/`). #173 sigue abierto solo por los reels anteriores a R-115.
 6. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
    - **#37:** opciones 1 + 2. Va primero #156, un solo `ProcessReceipt`.
    - **La versión privada en una experiencia aparte:** destraba #87, #33 y #89.
