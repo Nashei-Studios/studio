@@ -68,16 +68,18 @@ function Get-Me {
     $l }
 
 function Get-BoardComments { param($Board)
-    <# Comments updated since the board's mark. $null when GitHub could not be reached. #>
+    <# Comments updated since the board's mark, an empty list when there are none. $null only when GitHub could not be reached. #>
     if ($Simulado) {
         $file = Join-Path $Simulado "comments-$($Board.repo -replace '/', '_')-$($Board.issue).json"
         if (-not (Test-Path -LiteralPath $file)) { return $null }
-        return @(Get-Content -LiteralPath $file -Raw -Encoding utf8 | ConvertFrom-Json)
+        return , @(Get-Content -LiteralPath $file -Raw -Encoding utf8 | ConvertFrom-Json)
     }
     $rows = & gh api --paginate (Get-CommentsApiPath $Board) `
         --jq '.[] | "\(.id)\t\(.user.login)\t\(.created_at)\t\(.body | @base64)"' 2>$null
     if ($LASTEXITCODE -ne 0) { return $null }
-    @(foreach ($row in $rows) {
+    # The comma keeps an empty list a list: without it PowerShell unrolls it to $null, which reads as a
+    # GitHub failure and stops the watch from ever waking the session (issue 178).
+    , @(foreach ($row in $rows) {
         $f = "$row" -split "`t"
         if ($f.Count -lt 4) { continue }
         [pscustomobject]@{ id = [long]$f[0]; login = $f[1]; createdAt = $f[2]; body = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($f[3])) } }) }

@@ -126,6 +126,10 @@ try {
 
     & $run tick | Out-Null
     Assert ((& $wakes).Count -eq 0) 'a pass with no posts resumes nothing'
+    # Issue 178: an empty board came back as $null (PowerShell unrolls an empty array) and read as a GitHub failure.
+    $tickLog = Join-Path $base 'estado/espera/tick.jsonl'
+    $errors = @(if (Test-Path -LiteralPath $tickLog) { Get-Content -LiteralPath $tickLog | Where-Object { $_ -match '"action":"error"' } })
+    Assert ($errors.Count -eq 0) 'a board with no comments is read as empty, not as a GitHub failure'
     $fromDisk = Read-BoardWatch (Join-Path $base "estado/espera/$session.json")
     Assert ((Get-CommentsApiPath $fromDisk.boards[0]) -match '^repos/acme/studio/issues/1/comments\?per_page=100&since=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$') 'a watch read back from disk still asks GitHub with an ISO date'
 
