@@ -47,14 +47,8 @@ Hecho al 14-11:
 3. **Cerrar lo abierto: hecho el 15-11.** studio#160 está cerrado y las dos Dependabot (drain-for-loot#1 y la #180 de la plantilla) están fusionadas.
 4. **Lo que no depende de una decisión:**
    - **drain-for-loot: hecho el 15-11.** #141 y #72 arreglados (PR #203 y #204); #77 y #59 cerrados con la prueba de que ya habían entrado.
-   - **studio:**
-     - #85: `Test-AgentLoopClone`.
-     - #91: el install-smoke se pasa del tiempo y gasta minutos.
-   - **plantilla:**
-     - #242: ruta de pwsh en place-sync.
-     - #233: pruebas de PowerShell en cada PR.
-     - #201 a #203: gate de rendimiento, presupuesto de carga y la lista de la prueba privada. Preparan #87 y #89 sin publicar.
-     - #269: el README manda a construir sobre la copia del mundo (lo mismo que se corrigió en el juego).
+   - **studio: hecho el 15-11.** #85 cerrado con la prueba (`puesto.ps1 check` da PASA en los cinco clones) y #91 arreglado (PR #174): la instalación en macOS y Windows esperaba un inicio de sesión de Google y ahora termina en 1 y 3 minutos.
+   - **plantilla:** #269 hecho el 15-11 (PR #270). En curso el 15-11: #242, #233 y #201 a #203.
 
    Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2).
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
@@ -62,7 +56,7 @@ Hecho al 14-11:
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
    - Sale una propuesta `needs-team` por frente, explicada a Victor y a Leon.
    - Trabajadores Sonnet, como máximo 3 a la vez, midiendo antes la memoria libre.
-   - Al 15-11: R-115 a R-124 siguen sin verificar. Se sumaron R-132 (verificado contra la documentación de Roblox) y R-133; están en el mismo issue.
+   - **Verificación hecha el 15-11:** R-115 a R-133 están en el issue, cada uno con qué es cierto, qué no y a qué issue del juego sirve. Queda abierto #173: una nota por reel en el vault del equipo.
 6. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
    - **#37:** opciones 1 + 2. Va primero #156, un solo `ProcessReceipt`.
    - **La versión privada en una experiencia aparte:** destraba #87, #33 y #89.
