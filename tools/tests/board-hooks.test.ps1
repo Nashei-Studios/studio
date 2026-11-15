@@ -417,6 +417,14 @@ try {
         foreach ($ok in @("git commit -m `"it's a fix, don't push yet`"", 'git commit -m ''docs: explain `-c` and `push`''',"git log --format='%h %s' -3")) {
             Assert ((& $guardShell 'Bash' $ok "$guardOrg").Trim() -eq '') "shell: quotes and backticks around whole words pass ($ok)"
         }
+        # Twelfth review: a subcommand or an option the shell builds when it runs.
+        foreach ($bypass in @('v=verify; git commit --no-$v -m y', 'git $sub -m y', 'x=commit; git ${x} -n -m y', 'git commit "--no-$v" -m y', 'git comm{it,} -m y', 'git commit --n?-verify -m y', "git `$'commit' -n -m y")) {
+            Assert ((& $guardShell 'Bash' $bypass "$guardOrg") -match '"permissionDecision":"deny"') "shell: on a work branch too, this is denied ($bypass)"
+        }
+        Assert ((& $guardShell 'PowerShell' '$a = @("commit","-n"); git @a -m y' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a PowerShell splat in the place of the subcommand fails closed'
+        foreach ($ok in @('git commit -m ''cuesta $5''', 'git commit -m "feat: price is $5 and {x}"', "git commit --message='cuesta `$5'", 'git add src/*.luau docs/?.md', 'git log --format=%H -3', 'git show HEAD@{1} --stat', 'git rev-parse --abbrev-ref @{u}')) {
+            Assert ((& $guardShell 'Bash' $ok "$guardOrg").Trim() -eq '') "shell: values the shell expands pass, only the subcommand and the options are judged ($ok)"
+        }
         New-Item -ItemType Directory -Force (Join-Path $guardOrg '.githooks') | Out-Null
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg") -match '"permissionDecision":"deny"') 'shell: a clone with .githooks but no core.hooksPath fails closed'
         & git -C $guardOrg config core.hooksPath .githooks
