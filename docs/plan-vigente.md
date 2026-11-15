@@ -44,16 +44,9 @@ Hecho al 14-11:
    - Toda sesión con `/goal` corre `arm` y usa `board-watch.ps1 wait` como su espera (skill `empezar-a-trabajar`, paso 3).
    - En el equipo de Victor la tarea ya está registrada. A los demás les llega con el release del lunes y `tools/puesto.ps1 install`.
 2. **La sesión de Leon tarda y gasta de más (studio#165, `needs-team`).** Su agente mide el piso de contexto de su equipo; Leon y Victor responden las opciones A a E (carril corto, análisis diario, modelo por tipo de trabajo, MCP por tarea).
-3. **Cerrar lo abierto:**
-   - **studio#160:** ronda 11 de la guardia de rama, en la rama `fix/160-guard-round11`. Mergear con el CI en verde y limpiar su worktree.
-   - **Dependabot pendientes:**
-     - drain-for-loot#1 apunta a `main`: hay que cerrarla y dejar que Dependabot la rehaga sobre `develop`.
-     - La #180 de la plantilla tiene el mirror de Notion en rojo: revisar su registro.
+3. **Cerrar lo abierto: hecho el 15-11.** studio#160 está cerrado y las dos Dependabot (drain-for-loot#1 y la #180 de la plantilla) están fusionadas.
 4. **Lo que no depende de una decisión:**
-   - **drain-for-loot:**
-     - #141: el build pisa la copia `places/dev.rbxl`.
-     - #72: PumpRules.
-     - #77 y #59: avisos viejos de `template-sync`. Si ya entraron, se cierran con la prueba.
+   - **drain-for-loot: hecho el 15-11.** #141 y #72 arreglados (PR #203 y #204); #77 y #59 cerrados con la prueba de que ya habían entrado.
    - **studio:**
      - #85: `Test-AgentLoopClone`.
      - #91: el install-smoke se pasa del tiempo y gasta minutos.
@@ -61,17 +54,23 @@ Hecho al 14-11:
      - #242: ruta de pwsh en place-sync.
      - #233: pruebas de PowerShell en cada PR.
      - #201 a #203: gate de rendimiento, presupuesto de carga y la lista de la prueba privada. Preparan #87 y #89 sin publicar.
+     - #269: el README manda a construir sobre la copia del mundo (lo mismo que se corrigió en el juego).
+
+   Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2).
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
    - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
    - Sale una propuesta `needs-team` por frente, explicada a Victor y a Leon.
    - Trabajadores Sonnet, como máximo 3 a la vez, midiendo antes la memoria libre.
+   - Al 15-11: R-115 a R-124 siguen sin verificar. Se sumaron R-132 (verificado contra la documentación de Roblox) y R-133; están en el mismo issue.
 6. **Decisiones `needs-team` (publicadas el 14-11 en studio#1; esperan la respuesta de Leon y de Victor):**
    - **#37:** opciones 1 + 2. Va primero #156, un solo `ProcessReceipt`.
    - **La versión privada en una experiencia aparte:** destraba #87, #33 y #89.
    - **Las 45 tareas de los dos triages.**
 
-   Cuando respondan los dos, se ejecuta lo aprobado en el orden del triage.
+   - **Sumadas después:** studio#165, studio#168, studio#171 y las features de la semana.
+
+   Al 15-11 Victor votó la opción recomendada en todas. Falta un voto más, de Leon o de Nande. Cuando llegue, se ejecuta lo aprobado en el orden del triage. El estado completo del equipo, con quién lleva qué, está en `docs/planning/estado-del-equipo-2026-11-15.md` de drain-for-loot y en el Drive.
 7. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
 
 ### Leon y su agente (mundo, arte, UI, audio)
