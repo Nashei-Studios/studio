@@ -29,6 +29,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: puesto.ps1 install
         shell: pwsh
+        env:
+          # Nobody is there to sign in to Google: without this, macOS and Windows open a browser and wait until the limit.
+          NASHEI_SIN_NAVEGADOR: '1'
         run: |
           $json = & pwsh -NoProfile -File tools/puesto.ps1 install -Json -Base (Join-Path $env:RUNNER_TEMP 'nashei')
           $report = ($json | Out-String) | ConvertFrom-Json

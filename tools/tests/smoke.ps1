@@ -185,7 +185,11 @@ try {
         Remove-Item (Join-Path $state 'remote.txt'); $env:DISPLAY = $null; $env:SSH_CONNECTION = '1 2 3 4'
         $drive4 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b4') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
         Assert ($drive4.state -eq 'PERSONA' -and $drive4.detail -like '*rclone authorize*' -and -not (Test-Path (Join-Path $state 'remote.txt'))) 'without a browser install explains rclone authorize and does not try to open one'
-    } finally { $env:PATH = $savedPath; $env:DISPLAY = $savedDisplay[0]; $env:SSH_CONNECTION = $savedDisplay[1]; $env:FAKE_RCLONE_ACCESS = $null }
+
+        $env:DISPLAY = ':0'; $env:SSH_CONNECTION = $null; $env:NASHEI_SIN_NAVEGADOR = '1'
+        $drive5 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b5') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ($drive5.state -eq 'PERSONA' -and -not (Test-Path (Join-Path $state 'remote.txt'))) 'an unattended run (NASHEI_SIN_NAVEGADOR) never opens the browser, even on a system that has one'
+    } finally { $env:PATH = $savedPath; $env:DISPLAY = $savedDisplay[0]; $env:SSH_CONNECTION = $savedDisplay[1]; $env:FAKE_RCLONE_ACCESS = $null; $env:NASHEI_SIN_NAVEGADOR = $null }
 
     # 7. fix(security): installers are never run from a predictable temp path.
     $src = Get-Content (Join-Path $tools 'puesto.ps1') -Raw
