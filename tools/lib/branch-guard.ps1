@@ -108,6 +108,31 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     # are dropped means the command hides it: it fails closed below.
     $sensitive = '(?i)(?<![\w-])(?:commit|push|-c|--no-v[a-z-]*)(?![\w-])|hookspath|--config-env|allow_protected_|git_config_'
     $hidden = [regex]::Matches(($Command -replace '[''"`\\]', ''), $sensitive).Count -gt [regex]::Matches($Command, $sensitive).Count
+    # Twelfth review: counting tokens cannot see a word the shell builds when it runs (v=verify; git commit --no-$v,
+    # git $sub). git reads its subcommand and its options exactly as the shell leaves them, so in a git call a
+    # subcommand that is not a plain literal, or an option that still needs the shell ($, a backtick, braces, a
+    # glob, a PowerShell @splat), fails closed. Values are not looked at: a message with $5 or a path with * passes.
+    # This is the last rule added to this parser on purpose: what it cannot read fails closed, and the rule itself
+    # lives in .githooks (ADR 0006).
+    $activeWord = $false
+    $callStart = '(?:^|(?<=[;&|({\n]))\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:[^\s;&|"'']*[/\\])?'
+    foreach ($call in [regex]::Matches($Command, "(?i)${callStart}git(?:\.exe)?[ \t]+(?<rest>[^;&|\r\n]*)")) {
+        $seenSub = $false; $skipValue = $false
+        foreach ($w in [regex]::Matches($call.Groups['rest'].Value, '(?:[^\s"'']+|"[^"]*"|''[^'']*'')+')) {
+            if ($skipValue) { $skipValue = $false; continue }
+            $raw = $w.Value
+            $bare = $raw -replace '["'']', ''
+            if ($bare.StartsWith('-')) {
+                # Single quotes expand nothing, so what sits inside them is left out.
+                if ((($raw -replace "'[^']*'", '') -match '[$`{}*?\[]') -or $raw -match '^@\w') { $activeWord = $true }
+                if (-not $seenSub -and $bare -cmatch '^-[Cc]$') { $skipValue = $true }   # its value is judged above
+                continue
+            }
+            if ($seenSub) { continue }
+            $seenSub = $true
+            if ($raw -cnotmatch '^[a-z][a-z0-9-]*$') { $activeWord = $true }
+        }
+    }
     $readSpans = @()   # spans of `git config` reads: a token like hooksPath inside them is not a bypass
     # $( ), backticks and <( ) run text the parser cannot attribute to the call it sits in.
     $expands = $Command -match '\$\(|`|<\('
@@ -229,7 +254,7 @@ function Get-ShellGitOps { param([string]$Command, [string]$Cwd)
     $bypassOutside = $outside -match '(?i)--no-v[a-z-]*|--config-env|hooksPath|ALLOW_PROTECTED_|GIT_CONFIG_(?:COUNT|KEY|VALUE|PARAMETERS|GLOBAL|SYSTEM)'
     # Always added when it applies: ops are judged one by one, and another unclear op may not deny (a config write
     # in a repo outside the organization). Tenth security review.
-    if ($bypassOutside -or $anyRiskyC -or $hidden) {
+    if ($bypassOutside -or $anyRiskyC -or $hidden -or $activeWord) {
         $ops += [pscustomobject]@{ op = 'commit/push'; dir = ("$Cwd" -replace '\\', '/'); moves = @(); targets = @(); unclear = $true }
     }
     $ops }
