@@ -52,11 +52,14 @@ Hecho al 14-11:
 
    Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2). El orden por día hasta el privado del 20-11 está en `docs/planning/plan-al-20-11.md` de drain-for-loot.
 
-   **Features en borrador al 15-11 (drain-for-loot):**
-   - PR #175 (#131), #176 (#132) y #208 (#183, #187), apiladas en ese orden. Probadas juntas en una copia local el 15-11: etiqueta con rareza y precio, recogida, cambio con la mochila llena, gema y aviso por hallazgo nuevo. El resultado está en un comentario de cada PR.
-   - Sin probar: que el porcentaje de capa de #176 suba al drenar, el premio por completar la capa de #208 y la compra de prueba de #180 (#156), que necesita ids de producto que todavía no existen.
-   - En construcción: #200 (paso de venta en el embudo) y #152 (lógica del Kraken con pruebas).
-   - Ninguna pasa de borrador a lista sin el segundo voto de la decisión 7.
+   **Features en borrador al 16-11 (drain-for-loot):**
+   - Cadena de botín, apilada en este orden: PR #175 (#131), #176 (#132), #208 (#183, #187) y #223 (#196). Probadas en copia local: etiqueta con rareza y precio, recogida, cambio con la mochila llena, gema y aviso por hallazgo nuevo, HUD de capa que sube al drenar y primer botín raro garantizado.
+   - PR #221 (#200): paso de venta en el embudo. Con pruebas; el evento real de analítica se ve recién en el privado.
+   - Jefe: PR #222 (#152, lógica del Kraken con pruebas) y #225 (#153, la vida se publica solo cuando cambia el porcentaje: 25 escrituras donde antes había 150). Las dos probadas en copia.
+   - Premios: PR #226 (#224), el adaptador que lleva los premios de la plantilla al saldo que el jugador ve. Es el plan B de #37 y se borra cuando #37 se decida.
+   - En construcción: #194, #195, #186 y #193.
+   - Sin probar: el premio por completar la capa de #208, los golpes del Kraken contra el jugador, la compra de prueba de #180 (#156; faltan los ids de producto) y el adaptador de #226 en copia.
+   - Ninguna pasa de borrador a lista sin el segundo voto de la decisión 7. El resultado de cada prueba está en un comentario de su PR.
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
    - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
@@ -71,7 +74,7 @@ Hecho al 14-11:
    - **Sumadas después:** studio#165, studio#168, studio#171 y las features de la semana.
 
    Al 15-11 Victor votó la opción recomendada en todas. Falta un voto más, de Leon o de Nande. Cuando llegue, se ejecuta lo aprobado en el orden del triage. El estado completo del equipo, con quién lleva qué, está en `docs/planning/estado-del-equipo-2026-11-15.md` de drain-for-loot y en el Drive.
-7. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
+7. **Releases del lunes 16-11: hecho.** studio v0.7.0 y plantilla v0.8.0. `tools/puesto.ps1 install` en el equipo de Victor da PASA 39, FALLA 0; el aviso a Leon está en studio#1. El release se lanza desde `main` (`gh workflow run release.yml` sin `--ref`): lanzado desde `develop`, el push de la rama de release da 403.
 
 ### Leon y su agente (mundo, arte, UI, audio)
 
