@@ -1,4 +1,4 @@
-// Central mirror: every issue and pull request of every repo of the organization into one Notion
+// Central mirror: every issue (not pull requests) of every repo of the organization into one Notion
 // database. Runs on a schedule in this repo, so a new repo is covered with no setup of its own.
 //
 // Env:
@@ -11,23 +11,19 @@
 //   SYNC_SINCE_HOURS    look-back window (default 3). "all" syncs the full history.
 //
 // GitHub is the source of truth: Notion edits are overwritten on the next change.
-import { isConfigured, toProperties, upsert } from "./notion-mirror.mjs";
+import { isConfigured, notion, toProperties, upsert } from "./notion-mirror.mjs";
 
 const GITHUB = "https://api.github.com";
 
-/** Maps one item of the REST "list repository issues" endpoint to the mirror record. */
+/** Maps one item of the REST "list repository issues" endpoint to the mirror record, or null for a pull request (not mirrored, ADR 0008). */
 export function toRecord(item, repository) {
-  const isPr = Boolean(item.pull_request);
-  const merged = isPr && Boolean(item.pull_request.merged_at);
-  let state = item.state === "closed" ? "closed" : "open";
-  if (merged) state = "merged";
-  else if (isPr && item.draft === true && state === "open") state = "draft";
+  if (item.pull_request) return null;
   return {
     ref: `${repository}#${item.number}`,
     repo: repository.split("/")[1],
     title: String(item.title ?? "").slice(0, 200),
-    kind: isPr ? "pull request" : "issue",
-    state,
+    kind: "issue",
+    state: item.state === "closed" ? "closed" : "open",
     labels: (item.labels ?? []).map((label) => String(label.name).slice(0, 100)),
     assignees: (item.assignees ?? []).map((user) => user.login).join(", "),
     url: item.html_url,
@@ -58,6 +54,30 @@ async function github(fetchImpl, token, path) {
   return out;
 }
 
+/**
+ * Moves every row whose Kind is "pull request" to the trash (ADR 0008: the database holds issues only).
+ * Runs before the sync so the freed blocks are there for the issue rows. Returns how many it archived.
+ * `pause` waits between calls: Notion allows about three requests per second.
+ */
+export async function prunePullRequests(fetchImpl, env, log, pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))) {
+  const token = env.NOTION_TOKEN;
+  let archived = 0;
+  for (;;) {
+    const page = await notion(fetchImpl, token, "POST", `/databases/${env.NOTION_DATABASE_ID}/query`, {
+      filter: { property: "Kind", select: { equals: "pull request" } },
+      page_size: 100,
+    });
+    if (page.results.length === 0) break;
+    for (const row of page.results) {
+      await notion(fetchImpl, token, "PATCH", `/pages/${row.id}`, { archived: true });
+      archived += 1;
+      await pause(350);
+    }
+  }
+  if (archived > 0) log(`notion-sync: archived ${archived} pull request rows`);
+  return archived;
+}
+
 export async function main(env, fetchImpl, log) {
   if (!isConfigured(env)) {
     log("notion-sync: NOTION_TOKEN or NOTION_DATABASE_ID is not set, sync is inactive");
@@ -68,6 +88,7 @@ export async function main(env, fetchImpl, log) {
   if (!token || !org) throw new Error("a GitHub token and an organization are required");
   if (!env.GH_READ_TOKEN?.trim()) log("notion-sync: GH_READ_TOKEN is not set, only public repos are read");
 
+  await prunePullRequests(fetchImpl, env, log);
   const since = sinceFrom(env.SYNC_SINCE_HOURS);
   const repos = (await github(fetchImpl, token, `/orgs/${org}/repos?per_page=100&type=all`)).filter((r) => !r.archived && r.has_issues);
   let written = 0;
@@ -76,6 +97,7 @@ export async function main(env, fetchImpl, log) {
     const items = await github(fetchImpl, token, `/repos/${repo.full_name}/issues?${query}`);
     for (const item of items) {
       const record = toRecord(item, repo.full_name);
+      if (record === null) continue;
       // The Repo column is extra to the per-repo mirror contract; it powers the "by repo" views.
       const withRepo = { ...record };
       await upsert(fetchImpl, env, withRepo, (properties) => ({ ...properties, Repo: { select: { name: record.repo } } }));

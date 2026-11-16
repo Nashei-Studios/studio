@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { errorDetail, upsert } from "./notion-mirror.mjs";
+import { errorDetail, toRecord, upsert } from "./notion-mirror.mjs";
 
 const env = { NOTION_TOKEN: "secret-token-value", NOTION_DATABASE_ID: "db" };
 const record = {
   ref: "owner/repo#1",
   title: "t",
-  kind: "pull request",
+  kind: "issue",
   state: "open",
   labels: [],
   assignees: "",
@@ -48,4 +48,13 @@ test("a rejected page creation says why and never leaks the token", async () => 
       return true;
     },
   );
+});
+
+test("a pull request event maps to no record, an issue event does", () => {
+  const item = { number: 3, title: "t", state: "closed", labels: [], assignees: [], html_url: "h", updated_at: "u" };
+  assert.equal(toRecord({ pull_request: item }, "o/r"), null);
+  assert.equal(toRecord({}, "o/r"), null);
+  assert.deepEqual(toRecord({ issue: item }, "o/r"), {
+    ref: "o/r#3", title: "t", kind: "issue", state: "closed", labels: [], assignees: "", url: "h", updated: "u",
+  });
 });

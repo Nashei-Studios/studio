@@ -69,7 +69,7 @@ Estado: **funciona**. Subir y bajar verifican el hash. Lo que no garantiza: Driv
 |---|---|---|
 | Merge al verde, cierre de issues, borrado de ramas | Workflows de la plantilla (`ci.yml`, automerge) | Funciona en los repos estampados |
 | Release con changelog | `release.yml` de la plantilla | Funciona |
-| Issues y PR hacia Notion | `notion-mirror.yml` en cada repo (al instante) y `notion-sync.yml` en `studio` (repaso cada 30 minutos de toda la organización) | Funciona en `studio`, `drain-for-loot` y `project-template`. El repaso central solo ve repos públicos hasta que exista el secreto `GH_READ_TOKEN` |
+| Issues hacia Notion (los PR no, ADR 0008) | `notion-mirror.yml` en cada repo (al instante) y `notion-sync.yml` en `studio` (repaso cada 30 minutos de toda la organización) | Funciona en `studio`, `drain-for-loot` y `project-template`. El repaso central solo ve repos públicos hasta que exista el secreto `GH_READ_TOKEN` |
 | Aviso de mensajes nuevos al abrir Claude Code y en cada pedido | Hooks de `.claude/settings.json` que llaman a `tools/board-hooks/board-hook.ps1` | Funciona solo al clonar: `studio`, `drain-for-loot`, `roblox-game-template`, `project-template` y `art` |
 | Radar de mercado diario | Colector del vault (corre en el computador de Victor) | Funciona |
 

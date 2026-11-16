@@ -1,0 +1,42 @@
+name: branch-prune
+
+# Weekly prune of merged branches in every repo of the organization (docs/plan-ci-y-visibilidad.md, stage 3).
+# A new repo is covered automatically. Public repo, so minutes are free.
+# Deletes only a branch whose pull request is MERGED at the commit the branch still points at; the rest
+# is listed in the log for a person. Without the GH_PRUNE_TOKEN secret it only reports.
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only, delete nothing"
+        type: boolean
+        default: true
+
+concurrency:
+  group: branch-prune
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Prune merged branches
+        env:
+          GH_PRUNE_TOKEN: ${{ secrets.GH_PRUNE_TOKEN }}
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PRUNE_DRY_RUN: ${{ inputs.dry_run }}
+        run: node scripts/branch-prune.mjs

@@ -52,11 +52,14 @@ Hecho al 14-11:
 
    Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2). El orden por día hasta el privado del 20-11 está en `docs/planning/plan-al-20-11.md` de drain-for-loot.
 
-   **Features en borrador al 15-11 (drain-for-loot):**
-   - PR #175 (#131), #176 (#132) y #208 (#183, #187), apiladas en ese orden. Probadas juntas en una copia local el 15-11: etiqueta con rareza y precio, recogida, cambio con la mochila llena, gema y aviso por hallazgo nuevo. El resultado está en un comentario de cada PR.
-   - Sin probar: que el porcentaje de capa de #176 suba al drenar, el premio por completar la capa de #208 y la compra de prueba de #180 (#156), que necesita ids de producto que todavía no existen.
-   - En construcción: #200 (paso de venta en el embudo) y #152 (lógica del Kraken con pruebas).
-   - Ninguna pasa de borrador a lista sin el segundo voto de la decisión 7.
+   **Features en borrador al 16-11 (drain-for-loot):**
+   - Cadena de botín, apilada en este orden: PR #175 (#131), #176 (#132), #208 (#183, #187) y #223 (#196). Probadas en copia local: etiqueta con rareza y precio, recogida, cambio con la mochila llena, gema y aviso por hallazgo nuevo, HUD de capa que sube al drenar y primer botín raro garantizado.
+   - PR #221 (#200): paso de venta en el embudo. Con pruebas; el evento real de analítica se ve recién en el privado.
+   - Jefe: PR #222 (#152, lógica del Kraken con pruebas) y #225 (#153, la vida se publica solo cuando cambia el porcentaje: 25 escrituras donde antes había 150). Las dos probadas en copia.
+   - Premios: PR #226 (#224), el adaptador que lleva los premios de la plantilla al saldo que el jugador ve. Es el plan B de #37 y se borra cuando #37 se decida.
+   - En construcción: #194, #195, #186 y #193.
+   - Sin probar: el premio por completar la capa de #208, los golpes del Kraken contra el jugador, la compra de prueba de #180 (#156; faltan los ids de producto) y el adaptador de #226 en copia.
+   - Ninguna pasa de borrador a lista sin el segundo voto de la decisión 7. El resultado de cada prueba está en un comentario de su PR.
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
    - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
@@ -71,7 +74,30 @@ Hecho al 14-11:
    - **Sumadas después:** studio#165, studio#168, studio#171 y las features de la semana.
 
    Al 15-11 Victor votó la opción recomendada en todas. Falta un voto más, de Leon o de Nande. Cuando llegue, se ejecuta lo aprobado en el orden del triage. El estado completo del equipo, con quién lleva qué, está en `docs/planning/estado-del-equipo-2026-11-15.md` de drain-for-loot y en el Drive.
-7. **Releases del lunes 16-11** (studio y plantilla). Después, `tools/puesto.ps1 install` en el equipo de Victor y un aviso a Leon para que corra `install` tras su `pull`.
+7. **Releases del lunes 16-11: hecho.** studio v0.7.0 y plantilla v0.8.0. `tools/puesto.ps1 install` en el equipo de Victor da PASA 39, FALLA 0; el aviso a Leon está en studio#1. El release se lanza desde `main` (`gh workflow run release.yml` sin `--ref`): lanzado desde `develop`, el push de la rama de release da 403.
+
+8. **Órdenes de Victor del 16-11 (en curso).** Una sesión que retoma sigue esta cola en orden y marca cada línea al cerrarla:
+   - [ ] **Candidata a primera versión privada.** La rama `integ/drafts-16-11` de drain-for-loot fusiona todos los borradores y está jugada entera en copia. Falta sumarle las correcciones de las PR #232 y #233 y la #190, volver a correr el gate y dejar el archivo de place listo. Publicar lo hace Victor, con el paso a paso de `docs/planning/publicar-privado.md` de drain-for-loot (por escribir, verificado contra la documentación de Roblox). Después Nande la juega y de sus notas salen tareas.
+   - [ ] **Menú de propuestas para Leon.** Alrededor de 40 propuestas de arte, mundo, UI y audio sacadas de lo ya investigado (embudo, fichas de referentes, auditorías, issues). Cada una como issue con `from-research` y `needs-triage`, más un índice en una sola página con qué cambia, qué aporta y sí o no, para que Leon acepte en bloque, itere o descarte. También tareas para Nande y Victor.
+   - [ ] **Sistema que escala (GitHub, Drive, Notion).** Un documento con datos reales: qué vive dónde, minutos de Actions por repo (al 16-11 los privados llevan 896 de 2.000; 752 son de drain-for-loot antes de pasar su gate al runner propio), qué repos conviene dejar públicos o privados, y los pasos. Cambiar la visibilidad de un repo es decisión del equipo: se propone, no se aplica. Lo reversible sí se aplica.
+   - [ ] **Notion, opción A (studio#181).** El espejo deja de crear filas por PR y espeja solo issues; las filas de PR se archivan. Se mide cuántos bloques quedan libres.
+   - [ ] **Economía.** Análisis de la curva de ingreso contra los premios (`docs/investigacion/economia-curva-2026-11-16.md` de drain-for-loot) y propuesta de valores.
+   - [ ] **Herramientas de los reels R-134 a R-141.** Auditar e instalar lo recomendado: rembg, Upscayl y la skill `roblox-simulator-economy`.
+   - **Estado al cierre de la sesión del 16-11 (noche):** los cinco primeros puntos de esta cola están hechos (candidata, menú con 58 issues #239 a #296, `docs/sistema-que-escala.md`, Notion solo con issues y economía con valores aplicados). Falta el de herramientas de reels.
+
+9. **Órdenes de Victor del 16-11 por la noche. La sesión siguiente parte aquí.**
+   - **Decisión de Victor:** desde hoy su voto basta para aceptar features y decisiones del equipo. Todo lo recomendado quedó aceptado.
+   - [x] **Las 18 features entraron a `develop`** de drain-for-loot en la PR #299 (gate en verde, 1143 tests). Los 18 borradores se cerraron y sus ramas se borraron. La guía `docs/planning/publicar-privado.md` está en `develop` (PR #298).
+   - [ ] **Primera versión privada, martes 17-11.** Hecho: release v0.3.0 de drain-for-loot con las 18 features; `develop` jugado en la copia `places/rc-17-11.rbxl` sin errores de script (hitos del mar pagan 20K, 1,5M y 30M; `leaderstats` y aviso de jefe responden). Falta: que Victor publique con `docs/planning/publicar-privado.md` y que Nande haga el segundo playtest con el guion de 15 pasos de `docs/planning/backlog-1000/jugador-y-crecimiento.md`.
+   - [x] **Backlog de 1.105 features** en `docs/planning/backlog-1000/` de drain-for-loot (365 de arte, 388 de sistemas, 352 de jugador y 30 ideas de juegos), con índice `README.md`. Las 20 primeras de cada persona están en drain-for-loot#306 (Leon), #307 (Victor) y #309 (Nande). Sigue: cada quien toma las suyas en orden; cuando queden menos de 5, se sacan las 20 siguientes.
+   - [x] **Material del 16-11 integrado.** Los 27 archivos están en `D:\Victor\Roblox\kits` con nota por kit en roblox-vault (`develop`, PR #309) y copia en el Drive (`10-kits/2026-11-16-material-victor`, con el resumen). Skills instaladas: `roblox-thumbnail`, `roblox-sfx`, `lihfolk-stud-voxel`, `roblox-vfx`, `roblox-3d-model`, `roblox-map`, `roblox-texture-gen`, `roblox-animation`, `folk-stud-ui` y el plugin `lihfolk` 2.5.0. La copia local de iCloud quedó solo en la nube. Falta: auditar el Emote Menu (asset 127426970365786) en un place de prueba, revisar el MCP del Magnus Vault antes de habilitarlo y plantar `.githooks` en el clon del vault (hoy la guardia no deja empujar desde ahí; la PR #307 entró a `main` por eso mismo y se trajo a `develop`).
+   - [ ] **CI, minutos y visibilidad.** Hecho: `docs/plan-ci-y-visibilidad.md` y ADR 0009 (PR #190); rebase merge apagado en todos los repos; los tres `legacy-*` archivados el 16-11. Falta, en este orden: job semanal de poda de ramas en el runner `victor-pc`; dejar el lint de roblox-vault solo en PR y `develop`; comprobar que cada `ci.yml` lee la variable `CI_RUNNER` (fallback a `ubuntu-latest`); avisar al equipo y exigir verificación en dos pasos en la organización; cerrar studio#187 y studio#168.
+   - [x] **Ramas: solo `main` y `develop`.** El 16-11 las 12 ramas con trabajo fuera de la principal se guardaron como etiqueta `archive/<rama>` en su mismo commit y se borraron (se recuperan con `git switch -c <rama> archive/<rama>`). Solo quedan ramas con PR abierta: en roblox-vault dos de dependabot y `jarvis/youtube-shorts-2026-11-09`; en roblox-game-template `ci/notion-mirror-issues-only` y `feat/ui-motion-kit`; en project-template una de dependabot. La poda semanal (`branch-prune.yml`, PR #193) informa cada lunes y borra sola cuando exista el secreto `GH_PRUNE_TOKEN`.
+   - [ ] **Limpieza de C:.** De 16,8 a 19,6 GB libres el 16-11 (chats de más de 3 días indexados en `D:\Victor\Brain\40-archivo\sesiones-claude\2026-11-16.md`, Temp y versiones viejas de Claude Code). Para pasar de 20 falta `limpieza-elevada.ps1`, que pide el UAC de Victor.
+   - [x] **Pendientes chicos del juego:** drain-for-loot#303 y #304 cerrados en la PR #311 (1.147 tests). Sale en el próximo release del juego.
+   - [ ] **Copia del mundo al día.** `places/dev.rbxl` es del 13-11 y el mundo compartido cambió: las copias de prueba se ven viejas. Se refresca con File, Download a Copy desde la place compartida (un clic de Victor) o dando el scope `legacy-asset:manage` al asistente de Studio. Hasta entonces, ninguna prueba en copia vale como prueba del mundo actual.
+   - [ ] **Reparto por rol (orden de Victor del 16-11).** Victor es scripter y Leon builder: entre los dos cubren el desarrollo completo; Nande lleva lo de fuera del juego, en etapas posteriores. Falta reordenar los tres catálogos del backlog por rol y etapa con esa regla y subir la versión nueva al Drive.
+   - Regla de Victor del 16-11: se investiga y se contrasta antes de construir, se propone sin esperar y se sigue con lo recomendado en lo reversible. Bucear a una capa sin drenarla (#185) es parte de la mecánica.
 
 ### Leon y su agente (mundo, arte, UI, audio)
 
