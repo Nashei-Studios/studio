@@ -108,7 +108,7 @@ Ajustes: (a) públicos: ya activo; (b) privados: se mantiene apagado y lo cubre 
 |---|---|---|---|
 | 1 (hecha hoy) | rebase apagado en los 5 repos donde estaba | `allow_rebase_merge=false` en los 12 | `gh api -X PATCH repos/Nashei-Studios/<repo> -F allow_rebase_merge=false` |
 | 2 | fallback del runner | la variable cambia y un gate corre en `ubuntu-latest` | `gh api -X PATCH orgs/Nashei-Studios/actions/variables/CI_RUNNER -f value='"ubuntu-latest"'` (volver: `'["self-hosted","nashei"]'`) |
-| 3 | job de poda semanal y aviso al 75 % en `victor-pc` | corre en `workflow_dispatch` y borra 0 ramas sin PR `MERGED` | PR a `develop` de `.github` [pendiente] |
+| 3 | job de poda semanal y aviso al 75 % en `victor-pc` | corre en `workflow_dispatch` y borra 0 ramas sin PR `MERGED` | `scripts/branch-prune.mjs` y `.github/workflows/branch-prune.yml` de este repo; borra de verdad cuando exista el secreto `GH_PRUNE_TOKEN` |
 | 4 | decisiones de #187 (visibilidad, archivado) | dos de tres votos | archivar: `gh repo archive Nashei-Studios/legacy-grassgame --yes`; visibilidad: `gh repo edit Nashei-Studios/<repo> --visibility public --accept-visibility-change-consequences` |
 
 Flujo:
