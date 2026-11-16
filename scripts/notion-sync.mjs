@@ -1,4 +1,4 @@
-// Central mirror: every issue and pull request of every repo of the organization into one Notion
+// Central mirror: every issue (not pull requests) of every repo of the organization into one Notion
 // database. Runs on a schedule in this repo, so a new repo is covered with no setup of its own.
 //
 // Env:
@@ -15,19 +15,15 @@ import { isConfigured, toProperties, upsert } from "./notion-mirror.mjs";
 
 const GITHUB = "https://api.github.com";
 
-/** Maps one item of the REST "list repository issues" endpoint to the mirror record. */
+/** Maps one item of the REST "list repository issues" endpoint to the mirror record, or null for a pull request (not mirrored, ADR 0008). */
 export function toRecord(item, repository) {
-  const isPr = Boolean(item.pull_request);
-  const merged = isPr && Boolean(item.pull_request.merged_at);
-  let state = item.state === "closed" ? "closed" : "open";
-  if (merged) state = "merged";
-  else if (isPr && item.draft === true && state === "open") state = "draft";
+  if (item.pull_request) return null;
   return {
     ref: `${repository}#${item.number}`,
     repo: repository.split("/")[1],
     title: String(item.title ?? "").slice(0, 200),
-    kind: isPr ? "pull request" : "issue",
-    state,
+    kind: "issue",
+    state: item.state === "closed" ? "closed" : "open",
     labels: (item.labels ?? []).map((label) => String(label.name).slice(0, 100)),
     assignees: (item.assignees ?? []).map((user) => user.login).join(", "),
     url: item.html_url,
@@ -76,6 +72,7 @@ export async function main(env, fetchImpl, log) {
     const items = await github(fetchImpl, token, `/repos/${repo.full_name}/issues?${query}`);
     for (const item of items) {
       const record = toRecord(item, repo.full_name);
+      if (record === null) continue;
       // The Repo column is extra to the per-repo mirror contract; it powers the "by repo" views.
       const withRepo = { ...record };
       await upsert(fetchImpl, env, withRepo, (properties) => ({ ...properties, Repo: { select: { name: record.repo } } }));
