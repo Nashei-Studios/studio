@@ -27,6 +27,11 @@ export function decide(branch, pulls, protectedNames) {
   return { action: "report", reason: "commits after the merge" };
 }
 
+/** A branch name as URL path segments: each one encoded, so `#`, `?` or `%` in a name cannot change the request. */
+export function refPath(name) {
+  return name.split("/").map(encodeURIComponent).join("/");
+}
+
 async function github(fetchImpl, token, method, path) {
   const out = [];
   let url = `${GITHUB}${path}`;
@@ -63,7 +68,7 @@ export async function main(env, fetchImpl, log) {
       const pulls = await github(fetchImpl, token, "GET", `/repos/${repo.full_name}/pulls?state=all&per_page=100&head=${head}`);
       const verdict = decide(branch, pulls, protectedNames);
       if (verdict.action === "delete") {
-        if (!dryRun) await github(fetchImpl, token, "DELETE", `/repos/${repo.full_name}/git/refs/heads/${branch.name}`);
+        if (!dryRun) await github(fetchImpl, token, "DELETE", `/repos/${repo.full_name}/git/refs/heads/${refPath(branch.name)}`);
         totals.deleted += 1;
         log(`branch-prune: ${dryRun ? "would delete" : "deleted"} ${repo.name} ${branch.name}`);
       } else if (verdict.action === "report") {

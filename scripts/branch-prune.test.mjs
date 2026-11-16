@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decide, main } from "./branch-prune.mjs";
+import { decide, main, refPath } from "./branch-prune.mjs";
 
 const keep = ["main", "develop"];
 const branch = (name, sha) => ({ name, commit: { sha } });
@@ -51,4 +51,9 @@ test("without the prune token nothing is deleted", async () => {
   await main({ GH_READ_TOKEN: "read-token-value", PRUNE_ORG: "o" }, fakeGithub(calls), (line) => lines.push(line));
   assert.equal(calls.filter((call) => call.startsWith("DELETE")).length, 0);
   assert.ok(lines.some((line) => line.includes("would delete live feat/done")));
+});
+
+test("a branch name cannot alter the request path", () => {
+  assert.equal(refPath("feat/done"), "feat/done");
+  assert.equal(refPath("x?y#z%2e/a b"), "x%3Fy%23z%252e/a%20b");
 });
