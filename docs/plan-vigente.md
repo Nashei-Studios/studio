@@ -50,7 +50,13 @@ Hecho al 14-11:
    - **studio: hecho el 15-11.** #85 cerrado con la prueba (`puesto.ps1 check` da PASA en los cinco clones) y #91 arreglado (PR #174): la instalación en macOS y Windows esperaba un inicio de sesión de Google y ahora termina en 1 y 3 minutos.
    - **plantilla: hecho el 15-11.** #269 (PR #270), #242 (PR #271), #233 (PR #272), #201 (PR #273) y #202 con #203 (PR #274). Las mediciones de la página de presupuesto de carga quedan en `TBD` hasta la prueba privada.
 
-   Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2).
+   Regla de Victor del 15-11: las features del juego van antes que esta deuda. Mientras falten votos, se construyen en ramas en borrador, en el orden del backlog del juego (`docs/investigacion/embudo-2026-11-15.md` de drain-for-loot, ola 2). El orden por día hasta el privado del 20-11 está en `docs/planning/plan-al-20-11.md` de drain-for-loot.
+
+   **Features en borrador al 15-11 (drain-for-loot):**
+   - PR #175 (#131), #176 (#132) y #208 (#183, #187), apiladas en ese orden. Probadas juntas en una copia local el 15-11: etiqueta con rareza y precio, recogida, cambio con la mochila llena, gema y aviso por hallazgo nuevo. El resultado está en un comentario de cada PR.
+   - Sin probar: que el porcentaje de capa de #176 suba al drenar, el premio por completar la capa de #208 y la compra de prueba de #180 (#156), que necesita ids de producto que todavía no existen.
+   - En construcción: #200 (paso de venta en el embudo) y #152 (lógica del Kraken con pruebas).
+   - Ninguna pasa de borrador a lista sin el segundo voto de la decisión 7.
 5. **Frentes de Victor (studio#162, dentro de la épica #109):**
    - Son los reels R-115 a R-123 y la historia R-124 (producto que se mejora solo con métricas y errores).
    - Por cada uno: el contenido real con `aprender-de-video`, las afirmaciones verificadas en fuentes primarias y la aplicación a Drain for Loot.
