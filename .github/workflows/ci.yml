@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           node scripts/ecosistema.mjs validate
-          node --test scripts/ecosistema.test.mjs
+          node --test scripts/ecosistema.test.mjs scripts/notion-mirror.test.mjs scripts/notion-sync.test.mjs
       - name: Smoke test
         shell: pwsh
         run: ./tools/tests/smoke.ps1

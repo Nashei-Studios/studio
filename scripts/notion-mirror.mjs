@@ -66,9 +66,20 @@ async function notion(fetchImpl, token, method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`Notion ${method} ${path} failed with HTTP ${response.status}`);
+    throw new Error(`Notion ${method} ${path} failed with HTTP ${response.status}${await errorDetail(response)}`);
   }
   return response.json();
+}
+
+/** Notion's own `code` and `message` for a rejected call, or "" when the body is not its error JSON. Never echoes the request. */
+export async function errorDetail(response) {
+  try {
+    const body = await response.json();
+    const parts = [body?.code, body?.message].filter((part) => typeof part === "string" && part.length > 0);
+    return parts.length > 0 ? ` (${parts.join(": ").slice(0, 400)})` : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Creates the page for `record`, or updates the one whose Ref matches. `extend` may add properties. Returns "created" or "updated". */
