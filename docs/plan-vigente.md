@@ -76,6 +76,15 @@ Hecho al 14-11:
    Al 15-11 Victor votó la opción recomendada en todas. Falta un voto más, de Leon o de Nande. Cuando llegue, se ejecuta lo aprobado en el orden del triage. El estado completo del equipo, con quién lleva qué, está en `docs/planning/estado-del-equipo-2026-11-15.md` de drain-for-loot y en el Drive.
 7. **Releases del lunes 16-11: hecho.** studio v0.7.0 y plantilla v0.8.0. `tools/puesto.ps1 install` en el equipo de Victor da PASA 39, FALLA 0; el aviso a Leon está en studio#1. El release se lanza desde `main` (`gh workflow run release.yml` sin `--ref`): lanzado desde `develop`, el push de la rama de release da 403.
 
+8. **Órdenes de Victor del 16-11 (en curso).** Una sesión que retoma sigue esta cola en orden y marca cada línea al cerrarla:
+   - [ ] **Candidata a primera versión privada.** La rama `integ/drafts-16-11` de drain-for-loot fusiona todos los borradores y está jugada entera en copia. Falta sumarle las correcciones de las PR #232 y #233 y la #190, volver a correr el gate y dejar el archivo de place listo. Publicar lo hace Victor, con el paso a paso de `docs/planning/publicar-privado.md` de drain-for-loot (por escribir, verificado contra la documentación de Roblox). Después Nande la juega y de sus notas salen tareas.
+   - [ ] **Menú de propuestas para Leon.** Alrededor de 40 propuestas de arte, mundo, UI y audio sacadas de lo ya investigado (embudo, fichas de referentes, auditorías, issues). Cada una como issue con `from-research` y `needs-triage`, más un índice en una sola página con qué cambia, qué aporta y sí o no, para que Leon acepte en bloque, itere o descarte. También tareas para Nande y Victor.
+   - [ ] **Sistema que escala (GitHub, Drive, Notion).** Un documento con datos reales: qué vive dónde, minutos de Actions por repo (al 16-11 los privados llevan 896 de 2.000; 752 son de drain-for-loot antes de pasar su gate al runner propio), qué repos conviene dejar públicos o privados, y los pasos. Cambiar la visibilidad de un repo es decisión del equipo: se propone, no se aplica. Lo reversible sí se aplica.
+   - [ ] **Notion, opción A (studio#181).** El espejo deja de crear filas por PR y espeja solo issues; las filas de PR se archivan. Se mide cuántos bloques quedan libres.
+   - [ ] **Economía.** Análisis de la curva de ingreso contra los premios (`docs/investigacion/economia-curva-2026-11-16.md` de drain-for-loot) y propuesta de valores.
+   - [ ] **Herramientas de los reels R-134 a R-141.** Auditar e instalar lo recomendado: rembg, Upscayl y la skill `roblox-simulator-economy`.
+   - Regla de Victor del 16-11: se investiga y se contrasta antes de construir, se propone sin esperar y se sigue con lo recomendado en lo reversible. Bucear a una capa sin drenarla (#185) es parte de la mecánica.
+
 ### Leon y su agente (mundo, arte, UI, audio)
 
 1. **Puesto al día**: correr el prompt de studio#1 (comentario 6866076180). Incluye `gh auth refresh -h github.com -s project` para que su agente mueva tarjetas del Project.
