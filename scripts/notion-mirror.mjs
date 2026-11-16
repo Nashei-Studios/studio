@@ -51,7 +51,7 @@ export function isConfigured(env) {
   return Boolean(env.NOTION_TOKEN?.trim()) && Boolean(env.NOTION_DATABASE_ID?.trim());
 }
 
-async function notion(fetchImpl, token, method, path, body) {
+export async function notion(fetchImpl, token, method, path, body) {
   const response = await fetchImpl(`${API}${path}`, {
     method,
     headers: {

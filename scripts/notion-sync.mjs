@@ -11,7 +11,7 @@
 //   SYNC_SINCE_HOURS    look-back window (default 3). "all" syncs the full history.
 //
 // GitHub is the source of truth: Notion edits are overwritten on the next change.
-import { isConfigured, toProperties, upsert } from "./notion-mirror.mjs";
+import { isConfigured, notion, toProperties, upsert } from "./notion-mirror.mjs";
 
 const GITHUB = "https://api.github.com";
 
@@ -54,6 +54,30 @@ async function github(fetchImpl, token, path) {
   return out;
 }
 
+/**
+ * Moves every row whose Kind is "pull request" to the trash (ADR 0008: the database holds issues only).
+ * Runs before the sync so the freed blocks are there for the issue rows. Returns how many it archived.
+ * `pause` waits between calls: Notion allows about three requests per second.
+ */
+export async function prunePullRequests(fetchImpl, env, log, pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))) {
+  const token = env.NOTION_TOKEN;
+  let archived = 0;
+  for (;;) {
+    const page = await notion(fetchImpl, token, "POST", `/databases/${env.NOTION_DATABASE_ID}/query`, {
+      filter: { property: "Kind", select: { equals: "pull request" } },
+      page_size: 100,
+    });
+    if (page.results.length === 0) break;
+    for (const row of page.results) {
+      await notion(fetchImpl, token, "PATCH", `/pages/${row.id}`, { archived: true });
+      archived += 1;
+      await pause(350);
+    }
+  }
+  if (archived > 0) log(`notion-sync: archived ${archived} pull request rows`);
+  return archived;
+}
+
 export async function main(env, fetchImpl, log) {
   if (!isConfigured(env)) {
     log("notion-sync: NOTION_TOKEN or NOTION_DATABASE_ID is not set, sync is inactive");
@@ -64,6 +88,7 @@ export async function main(env, fetchImpl, log) {
   if (!token || !org) throw new Error("a GitHub token and an organization are required");
   if (!env.GH_READ_TOKEN?.trim()) log("notion-sync: GH_READ_TOKEN is not set, only public repos are read");
 
+  await prunePullRequests(fetchImpl, env, log);
   const since = sinceFrom(env.SYNC_SINCE_HOURS);
   const repos = (await github(fetchImpl, token, `/orgs/${org}/repos?per_page=100&type=all`)).filter((r) => !r.archived && r.has_issues);
   let written = 0;
