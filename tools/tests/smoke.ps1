@@ -21,7 +21,7 @@ $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The scripts parse.
-    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio') {
+    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks', 'lib/board-watch', 'board-watch') {
         $errors = $null
         [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $tools "$name.ps1"), [ref]$null, [ref]$errors)
         Assert ($errors.Count -eq 0) "$name.ps1 parses"
@@ -93,6 +93,28 @@ try {
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'escritorio.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'escritorio unit tests pass'
 
+    # 4e. Game tools that must run, not only exist (issue 144): the pure tests pass on this system.
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'rokit-tools.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'rokit-tools unit tests pass'
+
+    # 4f. Claude Code version for the hook fields (issue 108): the pure tests pass on this system.
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'claude-version.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'claude-version unit tests pass'
+
+    # 4g. Hooks pinned to the release tag (issue 108): the row exists, and the worktree tests pass on this system.
+    Assert (@($parsed.results | Where-Object { $_.id -in 'hooks-fijados', 'hooks-usuario' }).Count -ge 1) 'puesto check reports the hooks'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'pinned-hooks.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'pinned-hooks unit tests pass'
+
+    # 4h. The branch rule enforced by git (.githooks pre-commit and pre-push, ADR 0006).
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'git-hooks.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'git hooks tests pass'
+
+    # 4i. The durable board wait (issue 161, ADR 0007): decision, scheduler plan per system and the command end to end.
+    $watchOut = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'board-watch.test.ps1') 2>&1
+    Assert ($LASTEXITCODE -eq 0) 'board-watch tests pass'
+    $watchOut | Where-Object { "$_" -notmatch '^ok ' -and "$_" -ne 'ALL PASS' } | ForEach-Object { "      $_" }   # what failed, on the system that failed
+
     # 5. Roblox keys: presence only, simulated, no real value anywhere.
     $none = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas ninguna | Out-String | ConvertFrom-Json).results
     $all = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') check -Json -Base (Join-Path $work 'base') -LlavesSimuladas 'ROBLOX_API_KEY,ROBLOX_MONETIZATION_API_KEY' | Out-String | ConvertFrom-Json).results
@@ -163,7 +185,11 @@ try {
         Remove-Item (Join-Path $state 'remote.txt'); $env:DISPLAY = $null; $env:SSH_CONNECTION = '1 2 3 4'
         $drive4 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b4') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
         Assert ($drive4.state -eq 'PERSONA' -and $drive4.detail -like '*rclone authorize*' -and -not (Test-Path (Join-Path $state 'remote.txt'))) 'without a browser install explains rclone authorize and does not try to open one'
-    } finally { $env:PATH = $savedPath; $env:DISPLAY = $savedDisplay[0]; $env:SSH_CONNECTION = $savedDisplay[1]; $env:FAKE_RCLONE_ACCESS = $null }
+
+        $env:DISPLAY = ':0'; $env:SSH_CONNECTION = $null; $env:NASHEI_SIN_NAVEGADOR = '1'
+        $drive5 = (& pwsh -NoProfile -File (Join-Path $tools 'puesto.ps1') install -SoloDrive -Json -Base (Join-Path $work 'b5') | Out-String | ConvertFrom-Json).results | Where-Object id -eq 'drive'
+        Assert ($drive5.state -eq 'PERSONA' -and -not (Test-Path (Join-Path $state 'remote.txt'))) 'an unattended run (NASHEI_SIN_NAVEGADOR) never opens the browser, even on a system that has one'
+    } finally { $env:PATH = $savedPath; $env:DISPLAY = $savedDisplay[0]; $env:SSH_CONNECTION = $savedDisplay[1]; $env:FAKE_RCLONE_ACCESS = $null; $env:NASHEI_SIN_NAVEGADOR = $null }
 
     # 7. fix(security): installers are never run from a predictable temp path.
     $src = Get-Content (Join-Path $tools 'puesto.ps1') -Raw

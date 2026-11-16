@@ -27,7 +27,12 @@ function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'pregun
         UserPromptSubmit = [ordered]@{ hooks = @(& $entry 'prompt' 10) }
         PreToolUse       = @(
             [ordered]@{ matcher = $studioTools; hooks = @(& $entry 'candado' 10 $lockExtra) },
-            [ordered]@{ matcher = 'Edit|Write|MultiEdit|NotebookEdit'; hooks = @(& $entry 'rama' 10) })
+            [ordered]@{ matcher = 'Edit|Write|MultiEdit|NotebookEdit'; hooks = @(& $entry 'rama' 10) },
+            # git commit and git push from the shell (issue 108). The `if` field keeps pwsh from starting on every
+            # shell call: it only spawns when a subcommand is git.
+            [ordered]@{ matcher = '^Bash$|^PowerShell$'; hooks = @(
+                    (& $entry 'rama' 10 @{ 'if' = 'Bash(git *)' }),
+                    (& $entry 'rama' 10 @{ 'if' = 'PowerShell(git *)' })) })
         PostToolUse      = [ordered]@{ matcher = "$studioTools|mcp__.*[Gg]oogle.?[Dd]rive.*|^Bash$|^PowerShell$"; hooks = @(& $entry 'registro' 10) }
         Stop             = [ordered]@{ hooks = @(& $entry 'cierre' 15) }
     } }
@@ -71,15 +76,18 @@ function Test-UserHooks { param($Settings, [string]$HookScript, [string]$Modo = 
     $want = ($HookScript -replace '\\', '/')
     $spec = Get-NasheiHookSpec $HookScript $Modo
     $missing = @()
-    foreach ($event in $spec.Keys) { foreach ($want1 in @($spec[$event])) {
-        $mode = $want1.hooks[0].args[3]
-        $found = @($Settings.hooks.$event | ForEach-Object { @($_.hooks) } | Where-Object {
+    # Each wanted handler must exist under a group with the same matcher, with the same mode, path, onFailure
+    # and `if`: an install from before a new group or filter is reported, so check asks for install again.
+    foreach ($event in $spec.Keys) { foreach ($want1 in @($spec[$event])) { foreach ($wantHook in @($want1.hooks)) {
+        $mode = $wantHook.args[3]
+        $groups = @($Settings.hooks.$event | Where-Object { $_ -and "$($_.matcher)" -eq "$($want1.matcher)" })
+        $found = @($groups | ForEach-Object { @($_.hooks) } | Where-Object {
                 $args2 = @($_.args | ForEach-Object { "$_" -replace '\\', '/' })
                 (Test-IsNasheiHook $_) -and ($args2 -contains $mode) -and
                 ($IsWindows ? ($args2 -icontains $want) : ($args2 -ccontains $want)) -and
-                ("$($_.onFailure)" -eq "$($want1.hooks[0].onFailure)") })
+                ("$($_.onFailure)" -eq "$($wantHook.onFailure)") -and ("$($_.if)" -eq "$($wantHook.if)") })
         if (-not $found.Count) { $missing += $event; break }
-    } }
+    }; if ($missing -contains $event) { break } } }
     if (-not (Test-Path -LiteralPath $HookScript)) { $missing += 'script' }
     $missing }
 

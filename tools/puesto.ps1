@@ -54,6 +54,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/clone-branch.ps1')
 . (Join-Path $PSScriptRoot 'lib/user-hooks.ps1')
 . (Join-Path $PSScriptRoot 'lib/escritorio.ps1')
+. (Join-Path $PSScriptRoot 'lib/rokit-tools.ps1')
+. (Join-Path $PSScriptRoot 'lib/claude-version.ps1')
+. (Join-Path $PSScriptRoot 'lib/pinned-hooks.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -223,7 +226,7 @@ foreach ($root in $Repos) {
     }
 }
 
-$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @()
+$missing = @(); $noHooks = @(); $loopRows = @(); $branchIssues = @(); $cloneDirs = [ordered]@{}
 foreach ($repo in @($list)) {
     $dir = $clones[$repo.name]
     if (-not $dir) {
@@ -231,6 +234,7 @@ foreach ($repo in @($list)) {
         if ($doInstall) { & gh repo clone "$Org/$($repo.name)" $dir -- --quiet 2>$null | Out-Null }
         if (-not (Test-Path -LiteralPath (Join-Path $dir '.git'))) { $missing += $repo.name; continue }
     }
+    $cloneDirs[$repo.name] = $dir
     $why = Sync-CloneBranch -Dir $dir -Name $repo.name -Ecosystem $ecosystem -Org $Org -Install:$doInstall
     if ($why) { $branchIssues += $why }
     if (Test-Path -LiteralPath (Join-Path $dir '.githooks')) {
@@ -247,6 +251,33 @@ if ($login) {
     Add-Result 'hooks' ($noHooks.Count ? 'FALLA' : 'PASA') 'Protección local de ramas (core.hooksPath)' ($noHooks -join ', ')
 }
 
+# ---- 3b. The game tools pinned by each rokit.toml must run, not only exist (issue 144). ----
+# Each tool is called from its clone so Rokit resolves the pinned version; a spec already probed is not called again.
+if (-not $wantCode) { Add-Result 'herramientas-juego' 'NO APLICA' 'Herramientas de los juegos' "no las pide el perfil $Perfil" }
+elseif ($login) {
+    $sacState = Get-SmartAppControlState (Read-SmartAppControlValue)
+    $probes = @{}; $gameRows = 0
+    foreach ($entry in $cloneDirs.GetEnumerator()) {
+        $tomlPath = Join-Path $entry.Value 'rokit.toml'
+        if (-not (Test-Path -LiteralPath $tomlPath)) { continue }
+        $pinned = Get-RokitTools (Get-Content -LiteralPath $tomlPath -Raw)
+        if (-not $pinned.Count) { continue }
+        $failures = @()
+        foreach ($name in $pinned.Keys) {
+            $spec = $pinned[$name]
+            if (-not $probes.ContainsKey($spec)) {
+                Push-Location -LiteralPath $entry.Value
+                try { $probes[$spec] = Invoke-Quiet $name (Get-RokitToolProbeArgs $name) } finally { Pop-Location }
+            }
+            if (-not $probes[$spec].ok) { $failures += [pscustomobject]@{ name = $name; out = $probes[$spec].out } }
+        }
+        $row = Get-RokitToolchainRow -Repo $entry.Key -Total $pinned.Count -Failures $failures -SacState $sacState -TrustCommand (Get-RokitTrustCommand $pinned)
+        Add-Result "herramientas-$($entry.Key)" $row.state "Herramientas de $($entry.Key) ejecutan" $row.detail
+        $gameRows++
+    }
+    if (-not $gameRows) { Add-Result 'herramientas-juego' 'NO APLICA' 'Herramientas de los juegos' 'ningún clon tiene rokit.toml' }
+}
+
 # ---- 4. Drive library ----
 $libOk = $false
 if (Test-Cmd rclone) {
@@ -254,7 +285,9 @@ if (Test-Cmd rclone) {
     $root = $ecosystem.drive.raiz
     $hasRemote = { (Invoke-Quiet rclone @('listremotes')).out -match "(?m)^$([regex]::Escape($Remote)):" }
     $createCmd = "rclone config create $Remote drive scope=drive root_folder_id=$($root.id)"
-    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION
+    # NASHEI_SIN_NAVEGADOR: an unattended run (a CI runner) has a browser but nobody to click in it; opening one
+    # there waits for the Google sign-in until the job is killed (issue 91).
+    $noBrowser = (-not $IsWindows -and -not $IsMacOS -and -not $env:DISPLAY -and -not $env:WAYLAND_DISPLAY) -or [bool]$env:SSH_CONNECTION -or [bool]$env:NASHEI_SIN_NAVEGADOR
     if (-not (& $hasRemote) -and $Action -eq 'install' -and -not $noBrowser) {
         # Opens the browser: the person authorizes with the Google account the folder was shared with.
         Invoke-Quiet rclone (@('config', 'create', $Remote, 'drive', 'scope=drive', "root_folder_id=$($root.id)")) | Out-Null
@@ -331,20 +364,43 @@ if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
     Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
 }
 # ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
-# before ending the turn, start lock. They point at the studio clone, so a pull updates them. ----
+# before ending the turn, start lock, branch guard. They run from a worktree pinned to the latest release tag
+# (issue 108), not from the live branch of the studio clone: a new release reaches them with install. ----
 if (Test-Cmd claude) {
+    # The hooks use onFailure and if: below agente.claude_code_minimo Claude Code ignores them (issue 108).
+    $claudeRow = Get-ClaudeVersionRow (Invoke-Quiet claude @('--version')).out "$($ecosystem.agente.claude_code_minimo)" (Get-PuestoLoopConfig -Base $Base).modo
+    Add-Result 'claude-version' $claudeRow.state 'Versión de Claude Code (campos de los hooks del estudio)' $claudeRow.detail
     $studioClone = $clones['studio'] ?? (Split-Path $PSScriptRoot -Parent)
-    $hookScript = Join-Path $studioClone 'tools/board-hooks/board-hook.ps1'
+    $pinnedDir = Join-Path $Base 'hooks/studio'
+    $pinWhy = ''
+    if ($doInstall) {
+        & git -C $studioClone fetch --quiet --tags origin 2>$null
+        $pinWhy = Install-PinnedHooks $studioClone $pinnedDir
+    }
+    $pinRow = $pinWhy ? @{ state = 'PERSONA'; detail = $pinWhy } : (Test-PinnedHooks $studioClone $pinnedDir)
+    Add-Result 'hooks-fijados' $pinRow.state 'Hooks del estudio desde una copia fijada al último release' $pinRow.detail
+    $hookScript = Join-Path $pinnedDir 'tools/board-hooks/board-hook.ps1'
     $settingsPath = Get-ClaudeSettingsPath
     $why = ''
     if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo }
-    elseif ($doInstall) { $why = 'el clon de studio no trae tools/board-hooks/board-hook.ps1: actualízalo y vuelve a correr install' }
+    elseif ($doInstall) { $why = "no hay copia fijada de los hooks en $pinnedDir (ver la fila hooks-fijados)" }
     $missingHooks = @()
     try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo) }
     catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
     $hooksOk = -not $why -and -not $missingHooks.Count
     $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
     Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado, guardia de rama)' $hooksDetail
+    # The durable board wait (issue 161, ADR 0007): a scheduler entry that runs board-watch.ps1 tick. Like the
+    # hooks, it runs with the person's rights on a timer, so it only ever runs from the pinned copy.
+    $watchCli = Join-Path $pinnedDir 'tools/board-watch.ps1'
+    if (-not (Test-Path -LiteralPath $watchCli)) {
+        Add-Result 'espera-tablero' 'INFO' 'Espera del tablero que sobrevive a la sesión' 'llega con el próximo release de studio; después corre pwsh tools/puesto.ps1 install'
+    }
+    else {
+        if ($doInstall) { & pwsh -NoProfile -File $watchCli install 2>&1 | Out-Null }
+        $watchOk = [bool]((& pwsh -NoProfile -File $watchCli status 2>$null | Select-Object -First 1) -match ': installed$')
+        Add-Result 'espera-tablero' ($watchOk ? 'PASA' : 'PERSONA') 'Espera del tablero que sobrevive a la sesión' ($watchOk ? 'tarea del sistema registrada' : 'falta la tarea del sistema: corre pwsh tools/puesto.ps1 install')
+    }
 } else { Add-Result 'hooks-usuario' 'NO APLICA' 'Hooks del estudio a nivel usuario' 'no hay Claude Code en este equipo' }
 
 # ---- 5b. Roblox keys (presence only) and community. The key value is never read into a variable. ----

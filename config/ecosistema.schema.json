@@ -172,6 +172,14 @@
         "macos": { "$ref": "#/$defs/servidorMcp" }
       }
     },
+    "agente": {
+      "type": "object",
+      "required": ["claude_code_minimo"],
+      "properties": {
+        "claude_code_minimo": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Oldest Claude Code that honours every field the studio's hooks use; puesto check asks for an update below it." },
+        "motivo": { "type": "string" }
+      }
+    },
     "transcripcion": {
       "type": "object",
       "properties": {

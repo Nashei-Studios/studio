@@ -2,6 +2,10 @@ name: notion-sync
 
 # Central mirror of every repo of the organization into the Notion database "GitHub".
 # A new repo is covered automatically: nothing to configure in it. Public repo, so minutes are free.
+# The window is 12 hours although the schedule says 30 minutes: GitHub delays schedules, and on 2026-11-14 the
+# runs came about every 5 hours. With the old 3-hour window whatever changed in between was never mirrored.
+# Writes are upserts, so an overlapping window costs nothing. This is the only mirror since the per-event
+# notion-mirror of the private repos was switched off (issue 168): it cost one billed minute per event.
 on:
   schedule:
     - cron: "*/30 * * * *"
@@ -9,7 +13,7 @@ on:
     inputs:
       since_hours:
         description: 'Look-back window in hours, or "all" for the full history'
-        default: "3"
+        default: "12"
 
 concurrency:
   group: notion-sync
@@ -26,11 +30,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: scripts
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Sync to Notion
@@ -39,5 +43,5 @@ jobs:
           NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
           GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
-          SYNC_SINCE_HOURS: ${{ inputs.since_hours || '3' }}
+          SYNC_SINCE_HOURS: ${{ inputs.since_hours || '12' }}
         run: node scripts/notion-sync.mjs

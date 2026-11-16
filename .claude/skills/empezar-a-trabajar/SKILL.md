@@ -36,6 +36,37 @@ pwsh tools/work.ps1 mine
 
 Muéstrale sus tareas en lenguaje simple. Cola vacía es normal. Con `modo` `preguntar` o `estricto`, propón el primer issue y espera su sí; con `autonomo`, tómalo.
 
+**Con un `/goal` activo, la espera del tablero vive fuera de la sesión** (ley de Victor del 14-11-2026, ADR 0007). Una vez por meta:
+
+```
+pwsh tools/board-watch.ps1 arm -Sesion <id de la sesión> -Meta "<texto de la meta>" [-Tableros <owner/repo#issue del hilo del juego>]
+pwsh tools/board-watch.ps1 wait -Sesion <id de la sesión>     # la única espera de fondo; relánzala cada vez que vuelva
+```
+
+Si la sesión muere (memoria, corte, límite de 5 h, noche), la tarea del sistema la retoma con la meta cuando alguien publica. Comprobación: `pwsh tools/board-watch.ps1 status` muestra `scheduler: installed` y tu espera; si dice `MISSING`, corre `pwsh tools/puesto.ps1 install`. Al cumplir la meta: `pwsh tools/board-watch.ps1 disarm -Sesion <id>`. Si algo detiene la espera, se dice en el mismo turno y se relanza sin esperar a que lo pidan.
+
+## 3a. Análisis activo del área (cada sesión, sin cron)
+
+El estudio no espera a que alguien proponga trabajo: cada sesión trae su propio análisis del área de la persona y deja tareas nuevas. No es una tarea programada ni un cron, es parte del arranque. Se hace después del tablero y antes de tomar el issue, y no pasa de unos 15 minutos.
+
+1. **Qué frente toca.** Las áreas salen de `config/ecosistema.json` (`personas.<persona>.areas` y `foco`). Cada área tiene sus frentes y se rotan sesión a sesión:
+
+   | Persona | Frentes que rota |
+   |---|---|
+   | Código, infra, economía (Victor) | sistemas y loop · datos y guardado · rendimiento y carga · pruebas que rompen · economía y monetización · herramientas del estudio |
+   | Arte, UI, audio (Leon) | mundo y mapas · modelos y estilo · UI y sistema de diseño · animación y cámara · audio y música · miniaturas y video |
+   | Crecimiento (Nande) | primera sesión del jugador · social y lobby · live ops y eventos · comunidad y redes · programa de beta |
+
+   El frente de hoy es el siguiente al último analizado. Lo encuentras buscando tu último aviso `análisis` en el tablero (`pwsh tools/board.ps1 read`); si no hay, empieza por el primero.
+
+2. **Qué cambió desde la última sesión.** Commits del juego y de la plantilla que tocan el frente, issues abiertos y cerrados, documentos nuevos en `docs/investigacion/` de `studio` y del juego, novedades del vault (`roblox-vault/trends`, `research`) y archivos nuevos en tu carpeta del Drive.
+
+3. **Una mirada a fondo al frente.** Para los frentes de juego, la skill `roblox-analisis-por-frentes`; si tu agente no la tiene, el mismo método en pequeño: un referente con gameplay en video, lo que ya existe (vault, plantilla, kits) y la comparación con el juego. Para las herramientas del estudio, lo nuevo en skills, plugins, MCP y versiones (skill `mejora-continua` si existe). Nunca se juega un referente por el MCP de escritorio.
+
+4. **Hasta 3 propuestas.** Antes de crear, busca duplicados (`gh issue list --repo <repo> --search "<tema>" --state all`). Cada propuesta es un issue con Meta, No rompas, Hecho cuando, Cómo comprobarlo y Contexto (con la evidencia y sus enlaces comprobados), etiquetas `from-research`, `needs-triage`, tu `owner:` y el `area:`, y `--project` del juego o "Nashei Studios". Las de otra persona se proponen con su `owner:` y se le avisa: decide ella. Con `modo` `estricto` le muestras las propuestas a la persona y las creas después de su sí.
+
+5. **Aviso.** Una línea en el tablero: `análisis <área>/<frente>: <qué encontraste en una frase>; propuestas #a, #b`. Ese aviso es el que lee la próxima sesión para seguir la rotación. Comprobación: el aviso existe y cada propuesta está en el Project con `needs-triage`.
+
 ## 3b. Investigar antes de construir (todo issue, arte o código)
 
 Nada se construye "a lo loco". Al tomar un issue, antes del primer cambio:
@@ -46,6 +77,17 @@ Nada se construye "a lo loco". Al tomar un issue, antes del primer cambio:
 4. **Deja constancia** en el issue, como comentario con el encabezado `## Investigación`: fuentes con enlace (comprobado, nunca de memoria), qué se eligió y por qué. Comprobación: el comentario existe antes de la primera PR del issue; el revisor lo pide si falta.
 
 Si el issue ya trae una sección `## Investigación` con pistas, esas son el punto de partida, no el techo. Investigación grande (un frente entero del juego) va con la skill `roblox-analisis-por-frentes` si el agente la tiene; si no, el mismo método en pequeño.
+
+## 3c. Las decisiones son del equipo (`needs-team`)
+
+Regla de Victor del 14-11-2026: ninguna decisión se toma con una sola persona. Incluye ideas, datos de jugadores, una opción de arquitectura entre varias, publicar o probar una versión y aceptar tareas propuestas. Deciden al menos dos del equipo (Victor y Leon; Nande también cuando está), aunque el tema no sea del área de alguno.
+
+1. **Explícala entera, no la resumas.** Escribe qué es, para qué sirve, todas las opciones reales con qué se pierde en cada una, la recomendada y por qué, y qué pasa si no se hace. Arma la explicación con el sistema completo: las skills del área, el canon `cs-*` si es diseño, y un trabajador si hace falta investigar. Agrega una parte sin jerga para quien no es del área.
+2. **Pregúntale a todos, por su canal.** Al humano de tu sesión, en el chat. A los otros, en el tablero (studio#1) con mención, para que su agente se lo explique. La misma explicación llega a todos.
+3. **Marca el issue con `needs-team`.** Nunca `needs-victor` ni el nombre de una persona.
+4. **Registra la decisión en el issue cuando respondan al menos dos.** Con medio sí no se avanza: si responde uno, se espera al otro.
+
+Quién ejecuta no cambia: publicar, gastar Robux y manejar las llaves los hace Victor, pero después de que el equipo lo decide.
 
 ## 4. Arte, mapa, UI a mano, luces o audio
 
@@ -75,6 +117,7 @@ Todo en el repo del juego (`roblox.places[].repo`). Sus scripts mandan sobre est
 1. Cierra la Studio de tu copia de prueba (y tu Rojo, si lo levantaste para editar en vivo).
 2. Deja el aviso en el tablero: qué quedó hecho, qué sigue.
 3. Si la PR ya se mergeó, borra tu worktree y tu rama local.
+4. Lo que la sesión aprendió y le sirve a otros (una trampa, una herramienta, un referente, un número medido) va al documento que corresponde (`docs/` del repo o el vault), no solo al chat. Si abre trabajo, va a una tarea con `from-research`, igual que en el paso 3a.
 
 ## 7. Prohibido
 
@@ -84,4 +127,5 @@ Todo en el repo del juego (`roblox.places[].repo`). Sus scripts mandan sobre est
 | Tu Rojo contra otra cosa que no sea tu copia | Es solo para tu banco de pruebas |
 | Editar scripts en Studio | El siguiente sync los borra y no llegan a GitHub |
 | Commitear en `develop` o `main` | Todo entra por PR; `main` solo recibe releases |
-| Publicar en Roblox o hacer público el juego | Lo decide Victor |
+| Publicar en Roblox o hacer público el juego sin una decisión del equipo | Lo decide el equipo (`needs-team`, paso 3c) y lo ejecuta Victor |
+| Dejar una decisión para una sola persona | Toda decisión es `needs-team`: se le explica y pregunta a Victor y a Leon (paso 3c) |

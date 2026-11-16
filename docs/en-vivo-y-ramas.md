@@ -14,7 +14,7 @@ flowchart LR
     R2[Rama de otro] -->|PR al verde| D
   end
   D -->|Rojo, una sola computadora| Vivo
-  R1 -.->|rojo serve propio| B1[Tu copia local: places/dev.rbxl]
+  R1 -.->|merge-into-copy| B1[Tu copia local: places/rama.rbxl]
 ```
 
 ## Lo que vemos al mismo tiempo
@@ -35,7 +35,7 @@ Team Create guarda la place solo cada pocos minutos. Los jugadores no ven nada h
 
 - Cada uno programa en **su rama** (`feat/<tarea>`), en su computadora. El otro no ve nada hasta que la PR pasa el CI y entra a `develop`. Las PR son chicas y se mergean el mismo día, así nadie se queda atrás.
 - **Una sola computadora conecta Rojo a la place del grupo: la del juego, con `tools/place-sync.ps1` del repo del juego, siempre sobre `develop`.** Con dos Rojo conectados a la misma place, uno pisa al otro. Mientras el juego es privado, lo que se lleva es `develop`. Cuando sea público, la versión publicada sale de `main` por release.
-- Para probar tu rama: tu copia local de la place (`places/dev.rbxl`) con tu propio `rojo serve`. Nunca la place del grupo.
+- Para probar tu rama: tu agente mete el código de la rama en una copia local de la place con `lune run scripts/merge-into-copy` (sin Rojo conectado ni clics) y la abre en otro Studio. Nunca la place del grupo. Por eso a veces hay dos Studios abiertos: la place compartida y la copia de prueba ([plan vigente](plan-vigente.md)).
 - Cada uno programa en su rama; el trabajo del otro se revisa en su PR.
 
 ## Para Leon, en concreto

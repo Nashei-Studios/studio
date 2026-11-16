@@ -1,0 +1,4 @@
+# Fake URLs in tools/tests/board-hooks.test.ps1: the test checks that credentials written inside a URL are
+# dropped from a notice, so the hosts are placeholders and never exist.
+^https://([^/@]+@)?github\.com/x/y(\.git)?$
+^https://([^/@]+@)?host/z$
