@@ -124,6 +124,15 @@ Hecho al 14-11:
    - [ ] **Siguen siendo de Victor:** publicar la versión privada, `GH_PRUNE_TOKEN`, rotar el token de `~/.rokit/auth.toml`, scope `legacy-asset:manage`, verificación en dos pasos de la organización, público del juego.
    - Regla de Victor del 17-11: antes de construir se le propone a Leon por el tablero, y los dos agentes avisan en todo momento qué están haciendo (`empiezo`, `avance`, `cierro`).
 
+12. **Sesión del 17-11 (noche). La sesión siguiente parte aquí.**
+   - [x] **Release v0.6.0 del juego en GitHub** (no en Roblox): bloqueo de sesión al entrar (drain-for-loot#347), economía (#348: turbina 15 M, gemas del jefe, reinicio que guarda gemas) y compras seguras para 8 a 13 años (#350, ADR 0078). Antes, v0.5.0 con primer minuto (#340), compras (#341) y seguridad (#336).
+   - [x] **Cinemáticas probadas en copia** con el fondo nuevo de Leon (#346): la de jefe y la de mar drenado mueven la cámara y la devuelven. Con puntos que giran de golpe la toma se salta sola (guardia `sharpTurn`). **Sin verificar:** pulsar Skip a mitad de toma y la entrada con el Kraken (falta el actor `Cutscene_Kraken`).
+   - [ ] **Tercera tanda (drain-for-loot#339):** A y C hechos. Quedan el grupo B (misiones, premios, analítica) y el D (ajustes y rendimiento en teléfono), que necesitan a Leon, y SIS-010 (punto de venta cercano), que espera dónde va.
+   - [ ] **Seguimientos abiertos:** #349 (el hito del 75 % paga 30 M, el doble de la turbina), #351 (oferta de un evento que ya terminó sigue visible), #337 (ideas de Drain the Lake).
+   - [ ] **Sin probar en Studio:** avisos de compra reales, respuesta de `PolicyService`, replicación de atributos, cómo se sienten los precios nuevos, dos servidores con un perfil tomado.
+   - [ ] **Leon (studio#1):** lobby (#330), objeto que roba el Kraken, puntos de cámara sobre el fondo nuevo, zip de UI del Drive, gating del panel de admin (#335), vaciar la papelera del Drive.
+   - [ ] **Victor:** publicar la versión privada, rotar el token de `~/.rokit/auth.toml`, `GH_PRUNE_TOKEN`, verificación en dos pasos de la organización, `client_id` propio de rclone.
+
 ### Leon y su agente (mundo, arte, UI, audio)
 
 1. **Puesto al día**: correr el prompt de studio#1 (comentario 6866076180). Incluye `gh auth refresh -h github.com -s project` para que su agente mueva tarjetas del Project.
