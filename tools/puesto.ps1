@@ -20,6 +20,8 @@
     "modo":  "preguntar"         preguntar = proposes the issue and waits for a yes (default); autonomo = takes it;
                                  estricto = like preguntar. With autonomo and estricto an MCP edit to a group place is
                                  blocked without a started issue; with preguntar the person is asked
+    "hooks": "ligero"            completo (default) = every studio hook; ligero = session-start, cierre and one guard
+                                 process, for slow computers (ADR 0008). install applies it, check reports it
     "wip":   2                   optional personal cap on issues in progress; unset = no cap
   The first folder of "repos" receives the clones that are missing. A clone is recognised by its
   origin URL, not by its folder name.
@@ -382,13 +384,13 @@ if (Test-Cmd claude) {
     $hookScript = Join-Path $pinnedDir 'tools/board-hooks/board-hook.ps1'
     $settingsPath = Get-ClaudeSettingsPath
     $why = ''
-    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo }
+    if ($doInstall -and (Test-Path -LiteralPath $hookScript)) { $why = Install-UserHooks -HookScript $hookScript -Path $settingsPath -Modo (Get-PuestoLoopConfig -Base $Base).modo -Profile (Get-PuestoLoopConfig -Base $Base).hooks }
     elseif ($doInstall) { $why = "no hay copia fijada de los hooks en $pinnedDir (ver la fila hooks-fijados)" }
     $missingHooks = @()
-    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo) }
+    try { $missingHooks = @(Test-UserHooks (Read-ClaudeSettings $settingsPath) $hookScript (Get-PuestoLoopConfig -Base $Base).modo (Get-PuestoLoopConfig -Base $Base).hooks) }
     catch { if (-not $why) { $why = "$settingsPath no es JSON válido: corrígelo y vuelve a correr install" } }
     $hooksOk = -not $why -and -not $missingHooks.Count
-    $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
+    $hooksDetail = $hooksOk ? "modo=$((Get-PuestoLoopConfig -Base $Base).modo), perfil de hooks=$((Get-PuestoLoopConfig -Base $Base).hooks)" : ($why ? $why : "faltan $($missingHooks -join ', '): corre pwsh tools/puesto.ps1 install")
     Add-Result 'hooks-usuario' ($hooksOk ? 'PASA' : 'PERSONA') 'Hooks del estudio a nivel usuario (tablero, registro, aviso al cerrar, candado, guardia de rama)' $hooksDetail
     # The durable board wait (issue 161, ADR 0007): a scheduler entry that runs board-watch.ps1 tick. Like the
     # hooks, it runs with the person's rights on a timer, so it only ever runs from the pinned copy.

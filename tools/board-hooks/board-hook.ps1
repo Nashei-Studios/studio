@@ -10,11 +10,13 @@
 #   rama           PreToolUse: Edit/Write/MultiEdit/NotebookEdit on a file of an organization clone sitting on a protected
 #                  branch (develop, main: config github.ramas_protegidas), and `git commit` / `git push` onto one from
 #                  Bash or PowerShell (issue 108); same modo logic as candado. Fails open.
+#   guardia        PreToolUse of the ligero profile (ADR 0008): candado and rama in one process; a shell command
+#                  without git exits before anything loads
 # -Usuario: registered at user level by `puesto.ps1 install` (issue 67). The board then comes from this clone of
 # studio, and session-start / prompt stay quiet inside a clone whose own .claude/settings.json already runs them.
 # Never fails the session: always exits 0 (the lock answers with a JSON decision instead of an exit code).
 param(
-    [Parameter(Position = 0)][ValidateSet('session-start', 'prompt', 'registro', 'cierre', 'candado', 'rama')][string]$Mode = 'prompt',
+    [Parameter(Position = 0)][ValidateSet('session-start', 'prompt', 'registro', 'cierre', 'candado', 'rama', 'guardia')][string]$Mode = 'prompt',
     [switch]$Usuario
 )
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -40,11 +42,18 @@ function Format-Cmd { param([string]$Script, [string]$Rest)
     $s = ($studio -replace '\\', '/')
     "pwsh -NoProfile -WorkingDirectory `"$s`" -File `"$s/$Script`" $Rest".TrimEnd() }
 
-if ($Mode -in 'registro', 'cierre', 'candado', 'rama') {
+if ($Mode -in 'registro', 'cierre', 'candado', 'rama', 'guardia') {
     $in = $null
     try {
         $in = Read-HookInput
         if (-not $in) { exit 0 }
+        if ($Mode -eq 'guardia') {
+            # Cheap exit: a shell command with no `git` word cannot commit or push. Quotes, backticks and
+            # backslashes between the letters, or any expansion ($ or backtick), keep the full check.
+            $isShell = "$($in.tool_name)" -in 'Bash', 'PowerShell'
+            if ($isShell -and "$($in.tool_input.command)" -notmatch '(?i)g[''"`\\]*i[''"`\\]*t|\$|`') { exit 0 }
+            $Mode = ("$($in.tool_name)" -match '(?i)^mcp__') ? 'candado' : 'rama'
+        }
         # Inside the try: a library that fails to load is a failure of the hook, handled below.
         . (Join-Path $studio 'tools/lib/agent-loop.ps1')
         . (Join-Path $studio 'tools/lib/touch-log.ps1')

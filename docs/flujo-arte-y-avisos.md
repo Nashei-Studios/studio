@@ -156,3 +156,19 @@ Los avisos salen de `tools/board-hooks/aviso.ps1`, que arma el mensaje con el fo
 - Trabajar en un asset que otro tiene reclamado.
 
 Nota: el repo `art` es privado; sus enlaces abren con la sesión de la organización (no responden 2xx sin iniciar sesión).
+
+### Perfil de hooks: `completo` o `ligero`
+
+Cada hook arranca un `pwsh` y en un equipo lento eso se nota (ADR [0008](adr/0008-perfil-ligero-de-hooks.md)). En `~/Nashei/puesto.json` se elige:
+
+```json
+{ "areas": ["area:arte"], "modo": "preguntar", "hooks": "ligero" }
+```
+
+Para activarlo: editar `puesto.json`, correr `pwsh tools/puesto.ps1 install` (quita del `settings.json` los hooks del estudio que el perfil no usa) y abrir una sesión nueva de Claude Code. `pwsh tools/puesto.ps1 check` muestra el perfil en la fila `hooks-usuario` y marca PERSONA si lo instalado no coincide. Para volver: quitar la clave o poner `completo` y repetir `install`.
+
+`ligero` deja solo `session-start`, `cierre` y un único modo `guardia` (el candado y la guardia de rama en un proceso). Lo que deja de garantizar:
+
+- El aviso al tablero ya no se arma solo con la lista de lo tocado (MCP a places, `git push`, subidas a Drive): no hay `registro`. Se publica a mano con `aviso.ps1`.
+- Los mensajes nuevos del tablero ya no se muestran en cada mensaje de tu persona (no hay `prompt`); llegan al iniciar la sesión y al cerrar un turno si la espera durable vio algo.
+- Siguen: el candado de inicio, la guardia de rama del agente y la protección de `main` y `develop` por `.githooks` del clon.
