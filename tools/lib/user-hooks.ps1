@@ -10,7 +10,7 @@ function Get-ClaudeSettingsPath {
     $dir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
     Join-Path $dir 'settings.json' }
 
-function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'preguntar')
+function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'preguntar', [string]$Profile = 'completo')
     <# Event -> one matcher group. Exec form (command + args): no shell, so the same entry works in cmd,
        PowerShell, Git Bash, zsh and bash, and a path with spaces needs no quoting. #>
     $script = ($HookScript -replace '\\', '/')
@@ -22,6 +22,18 @@ function Get-NasheiHookSpec { param([string]$HookScript, [string]$Modo = 'pregun
         $h = [ordered]@{ type = 'command'; command = 'pwsh'; args = @('-NoProfile', '-File', $script, $Mode, '-Usuario'); timeout = $Timeout }
         foreach ($k in $Extra.Keys) { $h[$k] = $Extra[$k] }
         $h }
+    if ($Profile -eq 'ligero') {
+        # ADR 0008: one process (guardia) does what candado and rama do; no prompt, no per-tool registro.
+        return [ordered]@{
+            SessionStart = [ordered]@{ matcher = 'startup|resume|clear'; hooks = @(& $entry 'session-start' 20) }
+            PreToolUse   = @(
+                [ordered]@{ matcher = $studioTools; hooks = @(& $entry 'guardia' 10 $lockExtra) },
+                [ordered]@{ matcher = 'Edit|Write|MultiEdit|NotebookEdit'; hooks = @(& $entry 'guardia' 10) },
+                [ordered]@{ matcher = '^Bash$|^PowerShell$'; hooks = @(
+                        (& $entry 'guardia' 10 @{ 'if' = 'Bash(git *)' }),
+                        (& $entry 'guardia' 10 @{ 'if' = 'PowerShell(git *)' })) })
+            Stop         = [ordered]@{ hooks = @(& $entry 'cierre' 15) }
+        } }
     [ordered]@{
         SessionStart     = [ordered]@{ matcher = 'startup|resume|clear'; hooks = @(& $entry 'session-start' 20) }
         UserPromptSubmit = [ordered]@{ hooks = @(& $entry 'prompt' 10) }
@@ -70,12 +82,18 @@ function Merge-UserHooks { param($Settings, $Spec)
 
 function Remove-UserHooks { param($Settings) Merge-UserHooks $Settings ([ordered]@{}) }
 
-function Test-UserHooks { param($Settings, [string]$HookScript, [string]$Modo = 'preguntar')
+function Test-UserHooks { param($Settings, [string]$HookScript, [string]$Modo = 'preguntar', [string]$Profile = 'completo')
     <# Events whose board-hook.ps1 entry is missing, points somewhere else or does not match the modo (the lock
        must fail closed in a blocking modo). Empty = all present. #>
     $want = ($HookScript -replace '\\', '/')
-    $spec = Get-NasheiHookSpec $HookScript $Modo
+    $spec = Get-NasheiHookSpec $HookScript $Modo $Profile
     $missing = @()
+    # Studio hooks the profile does not use (an install from another profile) are reported too.
+    foreach ($event in @($Settings.hooks.Keys)) {
+        $allowed = @(@($spec[$event]) | ForEach-Object { $_.hooks } | ForEach-Object { @($_.args)[3] })
+        $extra = @(@($Settings.hooks[$event]) | ForEach-Object { @($_.hooks) } | Where-Object { $_ -and (Test-IsNasheiHook $_) -and (@($_.args)[3] -notin $allowed) })
+        if ($extra.Count -and $event -notin $missing) { $missing += $event }
+    }
     # Each wanted handler must exist under a group with the same matcher, with the same mode, path, onFailure
     # and `if`: an install from before a new group or filter is reported, so check asks for install again.
     foreach ($event in $spec.Keys) { foreach ($want1 in @($spec[$event])) { foreach ($wantHook in @($want1.hooks)) {
@@ -105,11 +123,11 @@ function Save-ClaudeSettings { param([string]$Path, $Settings)
     $Settings | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $tmp -Encoding utf8
     Move-Item -LiteralPath $tmp -Destination $Path -Force }
 
-function Install-UserHooks { param([string]$HookScript, [string]$Path = (Get-ClaudeSettingsPath), [string]$Modo = 'preguntar')
+function Install-UserHooks { param([string]$HookScript, [string]$Path = (Get-ClaudeSettingsPath), [string]$Modo = 'preguntar', [string]$Profile = 'completo')
     <# Writes the hooks. Returns '' on success or the reason it did not touch the file. #>
     try { $settings = Read-ClaudeSettings $Path }
     catch { return "$Path no es JSON válido: no se tocó; corrígelo y vuelve a correr install" }
-    Save-ClaudeSettings $Path (Merge-UserHooks $settings (Get-NasheiHookSpec $HookScript $Modo))
+    Save-ClaudeSettings $Path (Merge-UserHooks $settings (Get-NasheiHookSpec $HookScript $Modo $Profile))
     '' }
 
 function Uninstall-UserHooks { param([string]$Path = (Get-ClaudeSettingsPath))

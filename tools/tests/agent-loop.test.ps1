@@ -81,6 +81,14 @@ try {
     '{"areas":["arte"]}' | Set-Content (Join-Path $base 'puesto.json')
     $c = Get-PuestoLoopConfig $base
     Assert ($c.modo -eq 'preguntar' -and $c.problems.Count -ge 2) 'bad areas and missing modo are reported, default modo is preguntar'
+    # Hook profile (ADR 0008): completo is the default and never a problem; a bad value falls back to completo.
+    '{"areas":["area:arte"],"modo":"preguntar"}' | Set-Content (Join-Path $base 'puesto.json')
+    Assert ((Get-PuestoLoopConfig $base).hooks -eq 'completo' -and -not (Get-PuestoLoopConfig $base).problems.Count) 'no hooks key means the completo profile'
+    '{"areas":["area:arte"],"modo":"preguntar","hooks":"ligero"}' | Set-Content (Join-Path $base 'puesto.json')
+    Assert ((Get-PuestoLoopConfig $base).hooks -eq 'ligero' -and (Test-AgentLoopConfig $base).state -eq 'PASA') 'ligero is accepted'
+    '{"areas":["area:arte"],"modo":"preguntar","hooks":"rapido"}' | Set-Content (Join-Path $base 'puesto.json')
+    $c = Get-PuestoLoopConfig $base
+    Assert ($c.hooks -eq 'completo' -and ($c.problems -join '|') -match 'hooks') 'an unknown hooks profile is reported and falls back to completo'
 } finally { Remove-Item $base -Recurse -Force -ErrorAction SilentlyContinue }
 if ($failed) { "$failed expectation(s) failed"; exit 1 }
 'agent-loop tests passed'
