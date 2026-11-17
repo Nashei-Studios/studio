@@ -114,6 +114,23 @@ $oldInstall = $merged | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable
 $oldInstall.hooks.PreToolUse = @($oldInstall.hooks.PreToolUse | Where-Object { $_.matcher -ne '^Bash$|^PowerShell$' })
 Assert ((Test-UserHooks $oldInstall $hook) -contains 'PreToolUse') 'an install without the shell guard is asked to run install again'
 
+# Hook profiles (ADR 0008). completo is the spec above; ligero keeps session-start, cierre and one guard.
+$light = Get-NasheiHookSpec $hook 'preguntar' 'ligero'
+$lightModes = @($light.Values | ForEach-Object { @($_) } | ForEach-Object { $_.hooks } | ForEach-Object { $_.args[3] })
+Assert (($light.Keys -join ',') -eq 'SessionStart,PreToolUse,Stop') 'ligero registers no prompt and no per-tool registro'
+Assert (-not @($lightModes | Where-Object { $_ -notin 'session-start', 'cierre', 'guardia' }).Count -and ($lightModes | Where-Object { $_ -eq 'guardia' }).Count -ge 1) 'ligero runs only session-start, cierre and the single guard mode'
+$lightShell = @($light.PreToolUse | Where-Object { $_.matcher -eq '^Bash$|^PowerShell$' })
+Assert ($lightShell.Count -eq 1 -and (($lightShell[0].hooks | ForEach-Object { $_.if }) -join ',') -eq 'Bash(git *),PowerShell(git *)') 'ligero spawns the guard for a shell call only when it runs git'
+Assert ((@($light.PreToolUse | ForEach-Object { $_.hooks }) | Where-Object { $_.args[3] -in 'rama', 'candado' }).Count -eq 0) 'ligero has no separate rama or candado'
+Assert ((Get-NasheiHookSpec $hook 'estricto' 'ligero').PreToolUse[0].hooks[0].onFailure -eq 'block') 'in a blocking modo the ligero guard fails closed'
+$lightMerged = Merge-UserHooks $merged $light
+Assert (-not (Test-UserHooks $lightMerged $hook 'preguntar' 'ligero').Count) 'installing ligero over completo leaves a clean ligero install'
+Assert (-not $lightMerged.hooks.Contains('PostToolUse') -and -not $lightMerged.hooks.Contains('UserPromptSubmit') -and @($lightMerged.hooks.PreToolUse | ForEach-Object { $_.hooks } | Where-Object { $_.command -eq 'echo mine' }).Count -eq 1) 'switching to ligero removes the unused studio hooks and keeps the person own'
+Assert ((Test-UserHooks $lightMerged $hook 'preguntar' 'completo').Count -gt 0) 'check on completo reports a ligero install'
+Assert ((Test-UserHooks $merged $hook 'preguntar' 'ligero') -contains 'PostToolUse') 'check on ligero reports the hooks it no longer uses'
+$backToFull = Merge-UserHooks $lightMerged (Get-NasheiHookSpec $hook)
+Assert (-not (Test-UserHooks $backToFull $hook).Count) 'going back to completo restores every hook'
+
 # Board text enters the context capped and fenced (issue 108, finding 4).
 . (Join-Path $tools 'lib/board-text.ps1')
 $post = { param([int]$n, [string]$body) "--- @someone 2026-11-14T10:0${n}:00Z (#$n)`n$body" }
@@ -430,6 +447,28 @@ try {
         & git -C $guardOrg config core.hooksPath .githooks
         Assert ((& $guardShell 'Bash' 'git commit -m x' "$guardOrg").Trim() -eq '') 'shell: with core.hooksPath on .githooks a work-branch commit passes'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
+
+        # 11d. The ligero guard (ADR 0008): one process that does what candado and rama do, same answers.
+        & git -C $guardOrg symbolic-ref HEAD refs/heads/develop
+        & git -C $guardOrg config --unset core.hooksPath
+        & $setModo 'estricto'
+        $gEdit = @{ session_id = 'G'; hook_event_name = 'PreToolUse'; tool_name = 'Edit'; tool_input = @{ file_path = (Join-Path $guardOrg 'src/Main.luau') } }
+        Assert ((Invoke-Hook 'guardia' $gEdit) -eq (Invoke-Hook 'rama' $gEdit) -and (Invoke-Hook 'guardia' $gEdit) -match '"permissionDecision":"deny"') 'guardia: an edit on develop is answered like rama'
+        $gShell = @{ session_id = 'G'; hook_event_name = 'PreToolUse'; tool_name = 'Bash'; cwd = $guardOrg; tool_input = @{ command = 'git commit -m x' } }
+        Assert ((Invoke-Hook 'guardia' $gShell) -eq (Invoke-Hook 'rama' $gShell) -and (Invoke-Hook 'guardia' $gShell) -match '"permissionDecision":"deny"') 'guardia: a commit on develop is answered like rama'
+        Assert ((Invoke-Hook 'guardia' $edit) -eq (Invoke-Hook 'candado' $edit) -and (Invoke-Hook 'guardia' $edit) -match '"permissionDecision":"deny"') 'guardia: an MCP edit to the group place is answered like candado'
+        Assert ((Invoke-Hook 'guardia' @{ session_id = 'G'; tool_name = 'Bash'; cwd = $guardOrg; tool_input = @{ command = 'ls -la && echo done' } }).Trim() -eq '') 'guardia: a shell command without git passes'
+        # The cheap exit comes before the libraries load: a copy whose libraries are gone still lets a non-git command through.
+        $bare = Join-Path $work 'studio-sin-libs'
+        foreach ($d in 'tools/board-hooks', 'config') { New-Item -ItemType Directory -Force (Join-Path $bare $d) | Out-Null }
+        Copy-Item (Join-Path $tools 'board-hooks/board-hook.ps1') (Join-Path $bare 'tools/board-hooks')
+        $runBare = { param($cmd) (@{ session_id = 'G'; tool_name = 'Bash'; cwd = $guardOrg; tool_input = @{ command = $cmd } } | ConvertTo-Json -Depth 6 -Compress) | & pwsh -NoProfile -File (Join-Path $bare 'tools/board-hooks/board-hook.ps1') guardia -Usuario | Out-String }
+        Assert ((& $runBare 'ls -la').Trim() -eq '') 'guardia: a command without git exits before loading anything'
+        Assert ((Invoke-Hook 'guardia' @{ session_id = 'G'; tool_name = 'PowerShell'; cwd = $guardOrg; tool_input = @{ command = "& 'git' commit -m x" } }) -match '"permissionDecision":"deny"') 'guardia: a quoted git is not skipped by the cheap exit'
+        & $setModo 'preguntar'
+        Assert ((Invoke-Hook 'guardia' $gShell) -match '"permissionDecision":"ask"') 'guardia: preguntar asks'
+        & $setModo 'estricto'
         & git -C $guardOrg symbolic-ref HEAD refs/heads/feat/89-guard
 
         # 12. The issue read through gh, the path of a real notice: a stand-in gh goes first on PATH.
