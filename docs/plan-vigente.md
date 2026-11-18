@@ -141,6 +141,15 @@ Hecho al 14-11:
    - [ ] **Espera la versión privada publicada (Victor):** compras reales, dos servidores con un perfil tomado, guardado real de misiones y ajustes, partículas en teléfono (#362), eventos de analítica.
    - [ ] **Victor:** publicar la versión privada, rotar el token de `~/.rokit/auth.toml`, `GH_PRUNE_TOKEN`, verificación en dos pasos de la organización, `client_id` propio de rclone.
 
+14. **Sesión del 18-11 (día). La sesión siguiente parte aquí; el ciclo es investigar, proponer, construir, probar y repetir sin esperar.**
+   - [x] **Release v0.9.0 en GitHub** (no en Roblox): teclas G/P/B/H/V (drain-for-loot#367), corona al que más saca (#366), mochila llena con flecha (#365), aviso de mejora alcanzable (#368), marea baja a :00 y :30 UTC (#379), pieza buscada (#380, esquema 10), comprador del día (#381), sonar del buzo con X (#382).
+   - [x] **Probado en copia local** cada una de esas features (comentarios con mediciones en cada PR). Sin probar: tecla X y chips nuevos hasta que Leon reconstruya el HUD; venta real con el comprador del día.
+   - [x] **Menú de investigación del 18-11** (#378): propuestas #369 a #377 con su pregunta de sí o no a Leon.
+   - [ ] **En curso:** taller de fusión (#383, la pulida vale el 83 % de vender las tres: decide Leon) y títulos sobre el nombre (#385, esquema 11); se mergean en ese orden.
+   - [ ] **Siguientes del menú:** meta global entre servidores (#371, medir costo de MemoryStore), rescate del Kraken (#376, depende de probar el Kraken), señales rápidas (#377, revisar chat de menores de 13).
+   - [ ] **Leon:** modo light de modelos simples (studio#205, skill momentum-3d-models), colores de cuerpo, madera, metal y plantas en STYLE.md, y responder las preguntas de las PR.
+   - [ ] **Victor:** pasar el zip o el enlace del vault de Momentum para integrarlo; lo de los puntos anteriores sigue igual.
+
 ### Leon y su agente (mundo, arte, UI, audio)
 
 1. **Puesto al día**: correr el prompt de studio#1 (comentario 6866076180). Incluye `gh auth refresh -h github.com -s project` para que su agente mueva tarjetas del Project.
