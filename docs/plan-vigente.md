@@ -133,6 +133,14 @@ Hecho al 14-11:
    - [ ] **Leon (studio#1):** lobby (#330), objeto que roba el Kraken, puntos de cámara sobre el fondo nuevo, zip de UI del Drive, gating del panel de admin (#335), vaciar la papelera del Drive.
    - [ ] **Victor:** publicar la versión privada, rotar el token de `~/.rokit/auth.toml`, `GH_PRUNE_TOKEN`, verificación en dos pasos de la organización, `client_id` propio de rclone.
 
+13. **Sesión del 18-11 (madrugada). La sesión siguiente parte aquí; reemplaza los pendientes del punto 12.**
+   - [x] **Releases v0.7.0 y v0.8.0 en GitHub** (no en Roblox): hito del 75 % a 7,5 M (drain-for-loot#355), ofertas de evento terminado ocultas (#356), misiones con progreso guardado y analítica (#357, esquema 8), ajustes de música, efectos y destellos guardados más topes de partículas (#360, esquema 9).
+   - [x] **Probado en copia local:** misiones (la de bienvenida se completa, paga sola, pasa a la siguiente y sobrevive a salir y entrar); atributos de misión e índice llegan al cliente; ajustes por remote cambian el atributo y silencian la música, y una clave inventada se rechaza; cinemáticas de jefe y mar drenado mueven la cámara y la devuelven; Skip con Espacio corta la toma (margen corto, falta confirmarlo a mano).
+   - [x] **Tercera tanda (drain-for-loot#339):** grupos A, B, C y D hechos en lo que no necesita a Leon.
+   - [ ] **Espera a Leon (studio#1):** botón de reclamar misiones (SIS-229), balde del grupo (JUG-257), dónde va el punto de venta cercano (SIS-010), streaming probado con su mapa (ART-353), puntos de cámara y actor `Cutscene_Kraken`, lobby (#330), tabla de partículas de #360, unificar `Set_reduceMotion` (#361), zip de UI del Drive, gating del panel de admin (#335), vaciar la papelera del Drive.
+   - [ ] **Espera la versión privada publicada (Victor):** compras reales, dos servidores con un perfil tomado, guardado real de misiones y ajustes, partículas en teléfono (#362), eventos de analítica.
+   - [ ] **Victor:** publicar la versión privada, rotar el token de `~/.rokit/auth.toml`, `GH_PRUNE_TOKEN`, verificación en dos pasos de la organización, `client_id` propio de rclone.
+
 ### Leon y su agente (mundo, arte, UI, audio)
 
 1. **Puesto al día**: correr el prompt de studio#1 (comentario 6866076180). Incluye `gh auth refresh -h github.com -s project` para que su agente mueva tarjetas del Project.
