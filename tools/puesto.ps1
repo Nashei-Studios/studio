@@ -59,6 +59,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/rokit-tools.ps1')
 . (Join-Path $PSScriptRoot 'lib/claude-version.ps1')
 . (Join-Path $PSScriptRoot 'lib/pinned-hooks.ps1')
+. (Join-Path $PSScriptRoot 'lib/pinned-skills.ps1')
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 if ($Action -eq 'uninstall-hooks') {
     $why = Uninstall-UserHooks
@@ -364,6 +365,16 @@ if (Test-Cmd claude) {
 # Informational, never blocks: the Blender MCP warns about protocol 15 and expects 16 when the addon is stale.
 if ($wantArt -and (Test-Tool ($tools | Where-Object id -eq 'blender'))) {
     Add-Result 'blender-addon' 'INFO' 'Addon de Blender (el MCP espera el protocolo 16)' 'si el MCP avisa protocolo 15, actualiza con: uvx mcp-for-blender install-addon, y reactiva el addon en Blender (Edit > Preferences > Add-ons)'
+}
+# ---- 4b. Skills of Claude Code for the art role, pinned to one commit (config skills_arte). User level, no window. ----
+if ($wantArt) {
+    $skillsRoot = Join-Path $HOME '.claude/skills'
+    foreach ($spec in @($ecosystem.skills_arte)) {
+        $skillWhy = ''
+        if ($doInstall) { $skillWhy = Install-PinnedSkill $skillsRoot $spec }
+        $skillRow = $skillWhy ? @{ state = 'PERSONA'; detail = $skillWhy } : (Test-PinnedSkill $skillsRoot $spec)
+        Add-Result "skill-$($spec.id)" $skillRow.state "Skill de modelos 3D ($($spec.id)) fijada a un commit" $skillRow.detail
+    }
 }
 # ---- 5a. The studio's hooks at user level (issue 67): board in any folder, log of what was touched, notice
 # before ending the turn, start lock, branch guard. They run from a worktree pinned to the latest release tag

@@ -21,7 +21,7 @@ $savedConsoleEncoding = [Console]::OutputEncoding
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 try {
     # 1. The scripts parse.
-    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks', 'lib/board-watch', 'board-watch') {
+    foreach ($name in 'puesto', 'kits', 'inventario', 'work', 'board-hooks/board-hook', 'board-hooks/aviso', 'lib/touch-log', 'lib/user-hooks', 'lib/branch-guard', 'lib/escritorio', 'lib/rokit-tools', 'lib/board-text', 'lib/claude-version', 'lib/pinned-hooks', 'lib/pinned-skills', 'lib/board-watch', 'board-watch') {
         $errors = $null
         [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $tools "$name.ps1"), [ref]$null, [ref]$errors)
         Assert ($errors.Count -eq 0) "$name.ps1 parses"
@@ -105,6 +105,11 @@ try {
     Assert (@($parsed.results | Where-Object { $_.id -in 'hooks-fijados', 'hooks-usuario' }).Count -ge 1) 'puesto check reports the hooks'
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'pinned-hooks.test.ps1') | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'pinned-hooks unit tests pass'
+
+    # 4g2. The pinned art skill (installed by puesto install -Perfil arte): the row exists and the unit tests pass.
+    Assert (@($parsed.results | Where-Object { $_.id -eq 'skill-momentum-3d-models' }).Count -ge 1) 'puesto check reports the pinned art skill'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'pinned-skills.test.ps1') | Out-Null
+    Assert ($LASTEXITCODE -eq 0) 'pinned-skills unit tests pass'
 
     # 4h. The branch rule enforced by git (.githooks pre-commit and pre-push, ADR 0006).
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'git-hooks.test.ps1') | Out-Null
