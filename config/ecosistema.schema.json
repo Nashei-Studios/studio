@@ -180,6 +180,21 @@
         "motivo": { "type": "string" }
       }
     },
+    "skills_arte": {
+      "type": "array",
+      "description": "Skills of Claude Code that puesto.ps1 installs for the art role, each pinned to one commit of its repo.",
+      "items": {
+        "type": "object",
+        "required": ["id", "repo", "carpeta", "sha"],
+        "properties": {
+          "id": { "type": "string" },
+          "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+          "carpeta": { "type": "string" },
+          "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "licencia": { "type": "string" }
+        }
+      }
+    },
     "transcripcion": {
       "type": "object",
       "properties": {

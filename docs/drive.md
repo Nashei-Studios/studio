@@ -2,6 +2,18 @@
 
 Git guarda texto y código. Todo lo que pesa (kits de modelos, UI, audio, investigación con video, material de referencia) vive en una carpeta de Google Drive y cada persona tiene una copia en su computador. Drive es el punto de distribución; la copia local es la que usan Studio, Blender y los agentes.
 
+## Leon: lo mínimo
+
+Para arte solo usas `50-arte` (tus `.blend`, `.fbx` y texturas) y `10-kits` (kits que bajas). El resto de las carpetas, los manifiestos y los comandos de abajo no los necesitas para un modelo simple.
+
+Subir un modelo es un solo paso. Deja la carpeta del modelo (nombre en minúsculas y guiones, por ejemplo `cofre-capa`) dentro de `~/Nashei/biblioteca/50-arte/` (o la ruta de `biblioteca` en tu `puesto.json`) y corre:
+
+```powershell
+pwsh studio/tools/kits.ps1 push -Path ~/Nashei/biblioteca/50-arte -Folder 50-arte
+```
+
+La persona aprueba el envío antes de que el agente lo haga. No hace falta avisar en el tablero por un modelo simple: el cierre del issue lleva la carpeta. Si algo falla, `pwsh studio/tools/puesto.ps1 check` dice qué falta. Esta sección no cambia permisos ni borra nada del Drive.
+
 ## Qué es y qué no es
 
 | Es | No es |

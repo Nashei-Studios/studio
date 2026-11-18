@@ -216,6 +216,15 @@
     "claude_code_minimo": "2.1.295",
     "motivo": "Los hooks del estudio usan onFailure: block (el candado falla cerrado, desde 2.1.295) y el campo if (la guardia de rama en la shell). Con una versión anterior Claude Code los ignora en silencio."
   },
+  "skills_arte": [
+    {
+      "id": "momentum-3d-models",
+      "repo": "momentumcash/3d-model-skill",
+      "carpeta": "momentum-3d-models",
+      "sha": "826878479fad9d98a5add43f6ee793127360700b",
+      "licencia": "MIT"
+    }
+  ],
   "transcripcion": {
     "motor": "whisper-cli",
     "modelo": "~/Nashei/models/whisper/ggml-small.bin",
